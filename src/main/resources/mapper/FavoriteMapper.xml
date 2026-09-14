@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.FavoriteMapper">
+
+    <select id="findByUserIdAndGoodsId" resultType="int">
+        SELECT COUNT(*)
+        FROM favorite
+        WHERE user_id = #{userId}
+        AND goods_id = #{goodsId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO favorite
+        (user_id, goods_id, create_time)
+        VALUES
+        (#{userId}, #{goodsId}, NOW())
+    </insert>
+
+    <update id="updateTime">
+        UPDATE favorite
+        SET create_time = NOW()
+        WHERE user_id = #{userId}
+        AND goods_id = #{goodsId}
+    </update>
+
+</mapper>

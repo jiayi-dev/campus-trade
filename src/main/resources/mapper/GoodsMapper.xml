@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.GoodsMapper">
+
+    <!-- 1. 动态条件分页查询商品 -->
+    <select id="findPage"
+            resultType="com.jiayi.campustrade.entity.Goods">
+
+        SELECT
+        goods_id,
+        user_id,
+        category_id,
+        goods_name,
+        description,
+        price,
+        status,
+        create_time
+        FROM goods
+
+        <where>
+
+            <if test="goodsName != null and goodsName != ''">
+                AND goods_name LIKE CONCAT('%', #{goodsName}, '%')
+            </if>
+
+            <if test="categoryId != null">
+                AND category_id = #{categoryId}
+            </if>
+
+            <if test="minPrice != null">
+                AND price &gt;= #{minPrice}
+            </if>
+
+            <if test="maxPrice != null">
+                AND price &lt;= #{maxPrice}
+            </if>
+
+        </where>
+
+        ORDER BY create_time DESC
+
+        LIMIT #{offset}, #{pageSize}
+
+    </select>
+
+
+    <!-- 2. 查询符合条件的商品总数 -->
+    <select id="count"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM goods
+
+        <where>
+
+            <if test="goodsName != null and goodsName != ''">
+                AND goods_name LIKE CONCAT('%', #{goodsName}, '%')
+            </if>
+
+            <if test="categoryId != null">
+                AND category_id = #{categoryId}
+            </if>
+
+            <if test="minPrice != null">
+                AND price &gt;= #{minPrice}
+            </if>
+
+            <if test="maxPrice != null">
+                AND price &lt;= #{maxPrice}
+            </if>
+
+        </where>
+
+    </select>
+
+
+    <!-- 3. 根据商品ID查询商品详情 -->
+    <select id="findById"
+            resultType="com.jiayi.campustrade.entity.Goods">
+
+        SELECT
+        goods_id,
+        user_id,
+        category_id,
+        goods_name,
+        description,
+        price,
+        status,
+        create_time
+        FROM goods
+        WHERE goods_id = #{goodsId}
+
+    </select>
+
+
+    <!-- 4. 新增商品 -->
+    <insert id="insert"
+            useGeneratedKeys="true"
+            keyProperty="goodsId"
+            keyColumn="goods_id">
+
+        INSERT INTO goods
+        (
+        user_id,
+        category_id,
+        goods_name,
+        description,
+        price,
+        status,
+        create_time
+        )
+        VALUES
+        (
+        #{userId},
+        #{categoryId},
+        #{goodsName},
+        #{description},
+        #{price},
+        #{status},
+        NOW()
+        )
+
+    </insert>
+
+
+    <!-- 5. 修改商品 -->
+    <update id="update">
+
+        UPDATE goods
+
+        <set>
+
+            <if test="categoryId != null">
+                category_id = #{categoryId},
+            </if>
+
+            <if test="goodsName != null and goodsName != ''">
+                goods_name = #{goodsName},
+            </if>
+
+            <if test="description != null">
+                description = #{description},
+            </if>
+
+            <if test="price != null">
+                price = #{price},
+            </if>
+
+            <if test="status != null">
+                status = #{status},
+            </if>
+
+        </set>
+
+        WHERE goods_id = #{goodsId}
+
+    </update>
+
+
+    <!-- 6. 根据商品ID删除商品 -->
+    <delete id="deleteById">
+
+        DELETE FROM goods
+        WHERE goods_id = #{goodsId}
+
+    </delete>
+
+
+    <!-- 7. 批量新增商品 -->
+    <insert id="batchInsert"
+            useGeneratedKeys="true"
+            keyProperty="goodsId"
+            keyColumn="goods_id">
+
+        INSERT INTO goods
+        (user_id, category_id, goods_name, description, price, status, create_time)
+        VALUES
+        <foreach collection="list"
+                item="item"
+                separator=",">
+
+            (
+            #{item.userId},
+            #{item.categoryId},
+            #{item.goodsName},
+            #{item.description},
+            #{item.price},
+            #{item.status},
+            NOW()
+            )
+
+        </foreach>
+
+    </insert>
+
+
+    <!--
+    ============================
+    实施九：统计功能
+    ============================
+    -->
+
+    <!-- 8. 商品首页统计 -->
+    <select id="statistics"
+            resultType="java.util.Map">
+
+        SELECT
+        (SELECT COUNT(*) FROM goods) AS goodsCount,
+        (SELECT COUNT(*) FROM `user`) AS userCount,
+        (SELECT COUNT(DISTINCT category_id) FROM goods) AS categoryCount,
+        (SELECT IFNULL(SUM(price), 0) FROM goods) AS totalPrice
+
+    </select>
+
+
+    <!-- 9. 各商品分类平均价格 -->
+    <select id="categoryAvg"
+            resultType="java.util.Map">
+
+        SELECT
+        c.category_id AS categoryId,
+        c.category_name AS categoryName,
+        IFNULL(ROUND(AVG(g.price), 2), 0) AS avgPrice,
+        COUNT(g.goods_id) AS goodsCount
+        FROM category c
+        LEFT JOIN goods g ON c.category_id = g.category_id
+        GROUP BY c.category_id, c.category_name
+        ORDER BY avgPrice DESC
+
+    </select>
+
+
+    <!-- 10. 商品价格区间分布 -->
+    <select id="priceLevelCount"
+            resultType="java.util.Map">
+
+        SELECT
+        CASE
+            WHEN price &lt; 50 THEN '0-50元'
+            WHEN price &lt; 100 THEN '50-100元'
+            WHEN price &lt; 200 THEN '100-200元'
+            WHEN price &lt; 500 THEN '200-500元'
+            ELSE '500元以上'
+        END AS priceRange,
+        COUNT(*) AS goodsCount
+        FROM goods
+        GROUP BY priceRange
+        ORDER BY MIN(price)
+
+    </select>
+
+
+</mapper>
