@@ -41,7 +41,7 @@
 
         </where>
 
-        ORDER BY create_time DESC
+        ORDER BY goods_id ASC
 
         LIMIT #{offset}, #{pageSize}
 

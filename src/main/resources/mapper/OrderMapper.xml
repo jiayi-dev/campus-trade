@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.OrderMapper">
+
+    <select id="findAll"
+            resultType="com.jiayi.campustrade.entity.Orders">
+
+        SELECT
+        order_id,
+        goods_id,
+        buyer_id,
+        seller_id,
+        order_status,
+        create_time
+        FROM orders
+        ORDER BY create_time DESC, order_id DESC
+
+    </select>
+
+</mapper>
