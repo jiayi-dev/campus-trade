@@ -74,5 +74,7 @@ public interface GoodsMapper {
     // 商品价格区间统计
     List<Map<String,Object>> priceLevelCount();
 
+    List<Goods> findMyGoods(Integer userId);
+
 
 }

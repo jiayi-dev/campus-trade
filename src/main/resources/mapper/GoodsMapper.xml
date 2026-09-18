@@ -254,4 +254,23 @@
     </select>
 
 
+    <select id="findMyGoods"
+            parameterType="java.lang.Integer"
+            resultType="com.jiayi.campustrade.entity.Goods">
+
+        SELECT
+        goods_id,
+        user_id,
+        category_id,
+        goods_name,
+        description,
+        price,
+        status,
+        create_time
+        FROM goods
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC, goods_id DESC
+
+    </select>
+
 </mapper>

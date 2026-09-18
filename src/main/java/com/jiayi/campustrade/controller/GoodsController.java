@@ -188,4 +188,9 @@ public class GoodsController {
 
     }
 
+    @GetMapping("/my")
+    public List<Goods> findMyGoods() {
+        return goodsService.findMyGoods();
+    }
+
 }

@@ -5,6 +5,7 @@ import com.jiayi.campustrade.mapper.GoodsMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.jiayi.campustrade.auth.AuthContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -195,6 +196,16 @@ public class GoodsService {
 
         return goodsMapper.priceLevelCount();
 
+    }
+
+    public List<Goods> findMyGoods() {
+        Integer userId = AuthContext.getUserId();
+
+        if (userId == null) {
+            throw new RuntimeException("当前用户未登录");
+        }
+
+        return goodsMapper.findMyGoods(userId);
     }
 
 }
