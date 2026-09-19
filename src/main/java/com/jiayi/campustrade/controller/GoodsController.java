@@ -95,39 +95,103 @@ public class GoodsController {
     public String insert(
             @RequestBody Goods goods) {
 
-        goodsService.insert(goods);
+        try {
 
-        return "商品发布成功，商品ID：" + goods.getGoodsId();
+            goodsService.insert(goods);
+
+            return "商品发布成功，商品ID：" + goods.getGoodsId();
+
+        } catch (RuntimeException e) {
+
+            return e.getMessage();
+
+        }
 
     }
 
 
     // =========================
-    // 修改商品
+    // 修改商品（仅商品发布者本人或管理员）
     // =========================
 
     @PutMapping
     public String update(
             @RequestBody Goods goods) {
 
-        goodsService.update(goods);
+        try {
 
-        return "商品修改成功";
+            goodsService.update(goods);
+
+            return "商品修改成功";
+
+        } catch (RuntimeException e) {
+
+            return e.getMessage();
+
+        }
 
     }
 
 
     // =========================
-    // 删除商品
+    // 删除商品（仅商品发布者本人或管理员；已产生交易记录的商品禁止删除）
     // =========================
 
     @DeleteMapping("/{id}")
     public String deleteById(
             @PathVariable Integer id) {
 
-        goodsService.deleteById(id);
+        try {
 
-        return "商品删除成功";
+            goodsService.deleteById(id);
+
+            return "商品删除成功";
+
+        } catch (RuntimeException e) {
+
+            return e.getMessage();
+
+        }
+
+    }
+
+
+    // =========================
+    // 商品状态流转：PUT /goods/{id}/status，请求体 { status: 0 下架 / 1 上架 }
+    // 编辑接口不允许改动状态，上下架走独立接口以承载业务规则
+    //（已产生交易记录的商品不能重新上架）
+    // =========================
+
+    @PutMapping("/{id}/status")
+    public String updateStatus(
+            @PathVariable("id") Integer goodsId,
+            @RequestBody Map<String, Object> body) {
+
+        Object statusObj = body.get("status");
+
+        if (statusObj == null) {
+            return "缺少商品状态";
+        }
+
+        Integer targetStatus;
+
+        try {
+            targetStatus = Integer.valueOf(String.valueOf(statusObj));
+        } catch (NumberFormatException e) {
+            return "商品状态格式不正确";
+        }
+
+        try {
+
+            goodsService.updateStatus(goodsId, targetStatus);
+
+            return targetStatus == 1 ? "商品已上架" : "商品已下架";
+
+        } catch (RuntimeException e) {
+
+            return e.getMessage();
+
+        }
 
     }
 

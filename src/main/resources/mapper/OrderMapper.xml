@@ -105,6 +105,17 @@
     </select>
 
 
+    <!-- 某商品关联的订单数：删除保护 / 能否重新上架的判断依据 -->
+    <select id="countByGoodsId"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM orders
+        WHERE goods_id = #{goodsId}
+
+    </select>
+
+
     <!-- 状态流转：待交易 → 已完成 -->
     <update id="updateStatus">
 

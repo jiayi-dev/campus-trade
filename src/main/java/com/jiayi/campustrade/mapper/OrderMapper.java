@@ -31,4 +31,7 @@ public interface OrderMapper {
             @Param("orderStatus") Integer orderStatus
     );
 
+    // 统计某商品关联的订单数：删除商品前校验、判断商品能否重新上架
+    int countByGoodsId(@Param("goodsId") Integer goodsId);
+
 }

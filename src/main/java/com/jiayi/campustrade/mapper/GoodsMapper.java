@@ -84,4 +84,10 @@ public interface GoodsMapper {
             @Param("status") Integer status
     );
 
+    // 商品状态流转（下架/上架），归属与状态合法性由 Service 层校验
+    int updateStatus(
+            @Param("goodsId") Integer goodsId,
+            @Param("status") Integer status
+    );
+
 }
