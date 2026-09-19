@@ -20,4 +20,10 @@ public interface FavoriteMapper {
             @Param("userId") Integer userId,
             @Param("goodsId") Integer goodsId
     );
+
+    // 取消收藏
+    int delete(
+            @Param("userId") Integer userId,
+            @Param("goodsId") Integer goodsId
+    );
 }

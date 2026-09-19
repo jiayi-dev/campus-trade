@@ -27,4 +27,11 @@
         AND goods_id = #{goodsId}
     </update>
 
+    <!-- 取消收藏 -->
+    <delete id="delete">
+        DELETE FROM favorite
+        WHERE user_id = #{userId}
+        AND goods_id = #{goodsId}
+    </delete>
+
 </mapper>

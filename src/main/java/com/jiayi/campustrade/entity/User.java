@@ -1,6 +1,7 @@
 package com.jiayi.campustrade.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,8 @@ public class User {
 
     private String username;
 
+    // 密码只能在注册/登录时写入（反序列化），绝不允许通过接口返回（序列化）
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     private String phone;
