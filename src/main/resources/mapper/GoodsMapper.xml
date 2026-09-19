@@ -273,4 +273,15 @@
 
     </select>
 
+
+    <!-- 条件更新：只有在售商品才能被改成目标状态，用于下单时的并发抢占 -->
+    <update id="updateStatusIfOnSale">
+
+        UPDATE goods
+        SET status = #{status}
+        WHERE goods_id = #{goodsId}
+        AND status = 1
+
+    </update>
+
 </mapper>

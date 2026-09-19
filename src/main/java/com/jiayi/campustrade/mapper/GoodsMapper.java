@@ -77,4 +77,11 @@ public interface GoodsMapper {
     List<Goods> findMyGoods(Integer userId);
 
 
+    // 仅当商品仍在售（status=1）时才更新状态
+    // 下单并发控制：抢占成功返回 1，商品已被别人买走则返回 0
+    int updateStatusIfOnSale(
+            @Param("goodsId") Integer goodsId,
+            @Param("status") Integer status
+    );
+
 }
