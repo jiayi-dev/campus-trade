@@ -78,7 +78,18 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // 9. 身份验证通过，将用户ID放入当前请求上下文
+        // 9. 全量订单查询（GET /api/orders）仅管理员可访问
+        //    精确匹配路径，不影响 /orders/buyer、/orders/seller 等子路径
+        //    以及 POST /orders（下单）、PUT /orders/{id}/status（状态流转）
+        if ("GET".equalsIgnoreCase(request.getMethod())
+                && "/api/orders".equals(uri)
+                && !"admin".equals(user.getRole())) {
+
+            writeError(response, 403, "没有管理员权限");
+            return false;
+        }
+
+        // 10. 身份验证通过，将用户ID放入当前请求上下文
         AuthContext.setUserId(userId);
 
         return true;

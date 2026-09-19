@@ -3,23 +3,48 @@ package com.jiayi.campustrade.mapper;
 
 import com.jiayi.campustrade.entity.User;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 
 @Mapper
 public interface UserMapper {
 
     // 根据手机号查询用户
-    // 给 Service 用来判断：这个手机号是否已经注册
     User findByPhone(String phone);
 
     // 保存新用户
-    // 返回受影响的行数，正常插入成功一般为 1
     int insert(User user);
 
     // 根据用户ID查询用户
     User findById(Integer id);
 
     // 根据用户名查询用户
-// 登录时使用，用于获取用户的账号、密码、角色、状态等信息
     User findByUsername(String username);
+
+    // 管理员：用户分页查询（用户名/手机号模糊、角色、状态筛选）
+    List<User> findPage(
+            @Param("username") String username,
+            @Param("phone") String phone,
+            @Param("role") String role,
+            @Param("status") Integer status,
+            @Param("offset") Integer offset,
+            @Param("pageSize") Integer pageSize
+    );
+
+    // 管理员：用户总数（与 findPage 同条件）
+    int count(
+            @Param("username") String username,
+            @Param("phone") String phone,
+            @Param("role") String role,
+            @Param("status") Integer status
+    );
+
+    // 启用/禁用用户：仅更新 status 字段
+    int updateStatus(
+            @Param("userId") Integer userId,
+            @Param("status") Integer status
+    );
+
 }

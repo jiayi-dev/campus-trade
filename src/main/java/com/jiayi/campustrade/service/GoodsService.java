@@ -356,4 +356,29 @@ public class GoodsService {
         return goodsMapper.findMyGoods(userId);
     }
 
+
+    // =========================
+    // 管理员：商品分页查询（JOIN 卖家名与分类名）
+    // =========================
+
+    public List<Map<String, Object>> findAdminPage(
+            String goodsName,
+            Integer categoryId,
+            Integer status,
+            Integer pageNum,
+            Integer pageSize) {
+
+        Integer offset = (pageNum - 1) * pageSize;
+
+        return goodsMapper.findAdminPage(goodsName, categoryId, status, offset, pageSize);
+    }
+
+    public int countAdmin(
+            String goodsName,
+            Integer categoryId,
+            Integer status) {
+
+        return goodsMapper.countAdmin(goodsName, categoryId, status);
+    }
+
 }

@@ -86,6 +86,11 @@ public class OrderService {
         return orderMapper.findBySellerId(userId);
     }
 
+    // 管理员：查询平台全部订单（可选状态筛选）
+    public List<Map<String, Object>> findAllForAdmin(Integer orderStatus) {
+        return orderMapper.findAllForAdmin(orderStatus);
+    }
+
     /**
      * 确认订单完成：待交易(0) → 已完成(1)
      *

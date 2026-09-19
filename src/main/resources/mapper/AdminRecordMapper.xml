@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.AdminRecordMapper">
+
+    <!-- 写入操作记录：时间取数据库当前时间 -->
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.AdminRecord"
+            useGeneratedKeys="true"
+            keyProperty="recordId"
+            keyColumn="record_id">
+
+        INSERT INTO admin_record
+        (admin_id, operation, create_time)
+        VALUES
+        (#{adminId}, #{operation}, NOW())
+
+    </insert>
+
+
+    <!-- 查询全部操作记录，按时间倒序展示最新操作 -->
+    <select id="findAll"
+            resultType="com.jiayi.campustrade.entity.AdminRecord">
+
+        SELECT
+        record_id,
+        admin_id,
+        operation,
+        create_time
+        FROM admin_record
+        ORDER BY create_time DESC, record_id DESC
+
+    </select>
+
+</mapper>

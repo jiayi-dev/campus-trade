@@ -34,4 +34,7 @@ public interface OrderMapper {
     // 统计某商品关联的订单数：删除商品前校验、判断商品能否重新上架
     int countByGoodsId(@Param("goodsId") Integer goodsId);
 
+    // 管理员：全量订单查询（复用 orderDetailColumns JOIN 片段，可选状态筛选）
+    List<Map<String, Object>> findAllForAdmin(@Param("orderStatus") Integer orderStatus);
+
 }

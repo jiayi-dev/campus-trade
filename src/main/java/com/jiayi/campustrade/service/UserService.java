@@ -1,10 +1,13 @@
 package com.jiayi.campustrade.service;
 
+import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.entity.User;
 import com.jiayi.campustrade.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -46,5 +49,55 @@ public class UserService {
 
         // ⑥ 保存用户
         userMapper.insert(user);
+    }
+
+    // =========================
+    // 管理员：用户分页查询
+    // =========================
+
+    public List<User> findPage(
+            String username,
+            String phone,
+            String role,
+            Integer status,
+            Integer pageNum,
+            Integer pageSize) {
+
+        Integer offset = (pageNum - 1) * pageSize;
+
+        return userMapper.findPage(username, phone, role, status, offset, pageSize);
+    }
+
+    public int count(
+            String username,
+            String phone,
+            String role,
+            Integer status) {
+
+        return userMapper.count(username, phone, role, status);
+    }
+
+    // =========================
+    // 启用/禁用用户
+    //
+    // 业务规则：
+    // 1. 管理员不能禁用/启用自己（避免把自己锁死）
+    // 2. 只允许 0（禁用）和 1（启用）
+    // 3. 被禁用的用户在登录时会被 AuthService 拒绝
+    // =========================
+
+    public void updateStatus(Integer userId, Integer status) {
+
+        if (status == null || (status != 0 && status != 1)) {
+            throw new RuntimeException("不支持的用户状态");
+        }
+
+        Integer currentUserId = AuthContext.getUserId();
+
+        if (currentUserId != null && currentUserId.equals(userId)) {
+            throw new RuntimeException("不能禁用或启用自己的账号");
+        }
+
+        userMapper.updateStatus(userId, status);
     }
 }

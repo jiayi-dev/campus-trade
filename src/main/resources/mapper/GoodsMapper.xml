@@ -294,4 +294,72 @@
 
     </update>
 
+
+    <!--
+        管理员商品分页查询
+        一条 SQL JOIN 出卖家名与分类名，避免 N+1
+    -->
+    <select id="findAdminPage"
+            resultType="java.util.Map">
+
+        SELECT
+        g.goods_id      AS goodsId,
+        g.goods_name    AS goodsName,
+        g.price         AS price,
+        g.status        AS status,
+        g.create_time   AS createTime,
+        g.user_id       AS userId,
+        u.username      AS sellerName,
+        c.category_name AS categoryName
+        FROM goods g
+        LEFT JOIN `user` u ON g.user_id = u.user_id
+        LEFT JOIN category c ON g.category_id = c.category_id
+
+        <where>
+
+            <if test="goodsName != null and goodsName != ''">
+                AND g.goods_name LIKE CONCAT('%', #{goodsName}, '%')
+            </if>
+
+            <if test="categoryId != null">
+                AND g.category_id = #{categoryId}
+            </if>
+
+            <if test="status != null">
+                AND g.status = #{status}
+            </if>
+
+        </where>
+
+        ORDER BY g.goods_id DESC
+        LIMIT #{offset}, #{pageSize}
+
+    </select>
+
+
+    <!-- 管理员商品总数 -->
+    <select id="countAdmin"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM goods g
+
+        <where>
+
+            <if test="goodsName != null and goodsName != ''">
+                AND g.goods_name LIKE CONCAT('%', #{goodsName}, '%')
+            </if>
+
+            <if test="categoryId != null">
+                AND g.category_id = #{categoryId}
+            </if>
+
+            <if test="status != null">
+                AND g.status = #{status}
+            </if>
+
+        </where>
+
+    </select>
+
 </mapper>

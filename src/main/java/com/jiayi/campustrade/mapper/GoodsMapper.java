@@ -90,4 +90,20 @@ public interface GoodsMapper {
             @Param("status") Integer status
     );
 
+    // 管理员：商品分页查询（JOIN 带出卖家名与分类名）
+    List<Map<String, Object>> findAdminPage(
+            @Param("goodsName") String goodsName,
+            @Param("categoryId") Integer categoryId,
+            @Param("status") Integer status,
+            @Param("offset") Integer offset,
+            @Param("pageSize") Integer pageSize
+    );
+
+    // 管理员：商品总数
+    int countAdmin(
+            @Param("goodsName") String goodsName,
+            @Param("categoryId") Integer categoryId,
+            @Param("status") Integer status
+    );
+
 }

@@ -48,4 +48,87 @@
 
     </select>
 
+
+    <!--
+        管理员用户分页查询
+        显式列出字段，不查询 password（@JsonProperty WRITE_ONLY 也会兜底，双保险）
+    -->
+    <select id="findPage"
+            resultType="com.jiayi.campustrade.entity.User">
+
+        SELECT
+        user_id,
+        username,
+        phone,
+        email,
+        role,
+        status,
+        create_time
+        FROM user
+
+        <where>
+
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+
+            <if test="phone != null and phone != ''">
+                AND phone LIKE CONCAT('%', #{phone}, '%')
+            </if>
+
+            <if test="role != null and role != ''">
+                AND role = #{role}
+            </if>
+
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+
+        </where>
+
+        ORDER BY user_id ASC
+        LIMIT #{offset}, #{pageSize}
+
+    </select>
+
+
+    <!-- 管理员用户总数 -->
+    <select id="count"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM user
+
+        <where>
+
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+
+            <if test="phone != null and phone != ''">
+                AND phone LIKE CONCAT('%', #{phone}, '%')
+            </if>
+
+            <if test="role != null and role != ''">
+                AND role = #{role}
+            </if>
+
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+
+        </where>
+
+    </select>
+
+
+    <!-- 启用/禁用用户：只更新 status -->
+    <update id="updateStatus">
+
+        UPDATE user
+        SET status = #{status}
+        WHERE user_id = #{userId}
+
+    </update>
+
 </mapper>

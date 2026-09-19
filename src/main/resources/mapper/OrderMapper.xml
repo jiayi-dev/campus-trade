@@ -125,4 +125,25 @@
 
     </update>
 
+
+    <!--
+        管理员全量订单查询
+        复用 orderDetailColumns 片段：带出商品名、成交价、买卖双方昵称
+        可选订单状态筛选
+    -->
+    <select id="findAllForAdmin"
+            resultType="java.util.Map">
+
+        <include refid="orderDetailColumns"/>
+
+        <where>
+            <if test="orderStatus != null">
+                AND o.order_status = #{orderStatus}
+            </if>
+        </where>
+
+        ORDER BY o.create_time DESC, o.order_id DESC
+
+    </select>
+
 </mapper>
