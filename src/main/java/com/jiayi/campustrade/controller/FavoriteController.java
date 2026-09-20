@@ -45,6 +45,26 @@ public class FavoriteController {
         return result;
     }
 
+    // 批量查询收藏状态：GET /favorite/checkBatch?goodsIds=1,2,3
+    // 商品列表页一次请求回显整页卡片的收藏状态，避免逐个卡片发 N 个请求
+    @GetMapping("/checkBatch")
+    public Map<String, Object> checkBatch(@RequestParam List<Integer> goodsIds) {
+
+        Integer userId = AuthContext.getUserId();
+
+        Map<String, Object> result = new HashMap<>();
+
+        if (goodsIds == null || goodsIds.isEmpty()) {
+            result.put("favoriteGoodsIds", List.of());
+            return result;
+        }
+
+        result.put("favoriteGoodsIds",
+                favoriteService.findFavoriteGoodsIds(userId, goodsIds));
+
+        return result;
+    }
+
     // 收藏商品：POST /favorite/11
     // userId 从登录上下文获取；商品必须存在，且不能收藏自己发布的商品
     @PostMapping("/{goodsId}")
@@ -60,6 +80,12 @@ public class FavoriteController {
 
         if (userId.equals(goods.getUserId())) {
             return "不能收藏自己发布的商品";
+        }
+
+        // 与详情页规则保持一致：下架商品不允许新收藏（可能已被买走/撤下），
+        // 已收藏过的仍可正常取消收藏
+        if (goods.getStatus() == null || goods.getStatus() != 1) {
+            return "商品已下架，不能收藏";
         }
 
         favoriteService.addFavorite(userId, goodsId);

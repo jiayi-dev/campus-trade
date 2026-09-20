@@ -34,4 +34,15 @@
         AND goods_id = #{goodsId}
     </delete>
 
+    <!-- 批量查询已收藏的商品ID：IN 条件动态拼接，列表页一次请求回显全部收藏状态 -->
+    <select id="findFavoriteGoodsIds" resultType="java.lang.Integer">
+        SELECT goods_id
+        FROM favorite
+        WHERE user_id = #{userId}
+        AND goods_id IN
+        <foreach collection="goodsIds" item="goodsId" open="(" separator="," close=")">
+            #{goodsId}
+        </foreach>
+    </select>
+
 </mapper>

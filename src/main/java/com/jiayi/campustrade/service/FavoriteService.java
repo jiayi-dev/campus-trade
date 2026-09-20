@@ -98,6 +98,11 @@ public class FavoriteService {
         return favoriteMapper.findByUserIdAndGoodsId(userId, goodsId) > 0;
     }
 
+    // 批量查询当前用户已收藏的商品ID（列表页回显收藏状态，避免 N+1 请求）
+    public List<Integer> findFavoriteGoodsIds(Integer userId, List<Integer> goodsIds) {
+        return favoriteMapper.findFavoriteGoodsIds(userId, goodsIds);
+    }
+
     public static class FavoriteItem {
 
         private Integer userId;

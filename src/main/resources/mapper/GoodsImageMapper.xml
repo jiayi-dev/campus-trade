@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.GoodsImageMapper">
+
+    <!-- 1. 新增图片记录：第一张（sortOrder=0）由 Service 标记为主图 -->
+    <insert id="insert">
+        INSERT INTO goods_image
+        (goods_id, image_url, sort_order, is_primary, create_time)
+        VALUES
+        (#{goodsId}, #{imageUrl}, #{sortOrder}, #{isPrimary}, NOW())
+    </insert>
+
+
+    <!-- 2. 查询商品全部图片：主图优先 → 排序号 → 图片ID，保证展示顺序稳定 -->
+    <select id="findByGoodsId"
+            resultType="com.jiayi.campustrade.entity.GoodsImage">
+        SELECT
+        image_id    AS imageId,
+        goods_id    AS goodsId,
+        image_url   AS imageUrl,
+        sort_order  AS sortOrder,
+        is_primary  AS isPrimary,
+        create_time AS createTime
+        FROM goods_image
+        WHERE goods_id = #{goodsId}
+        ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+    </select>
+
+
+    <!-- 3. 只取 URL 列表（详情页多图轮播用） -->
+    <select id="findUrlsByGoodsId"
+            resultType="java.lang.String">
+        SELECT image_url
+        FROM goods_image
+        WHERE goods_id = #{goodsId}
+        ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+    </select>
+
+
+    <!-- 4. 删除商品全部图片记录（编辑全量替换 / 商品删除时同步清理） -->
+    <delete id="deleteByGoodsId">
+        DELETE FROM goods_image
+        WHERE goods_id = #{goodsId}
+    </delete>
+
+</mapper>

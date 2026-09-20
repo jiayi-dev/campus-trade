@@ -102,6 +102,9 @@ public interface GoodsMapper {
     // 收藏数同步：取消收藏时 -1（带下限保护，避免减成负数）
     int decrementFavoriteCount(@Param("goodsId") Integer goodsId);
 
+    // 浏览数 +1：数据库端原子自增（并发浏览不丢计数），商品不存在时影响 0 行
+    int incrementViewCount(@Param("goodsId") Integer goodsId);
+
     // 管理员：商品分页查询（JOIN 带出卖家名与分类名）
     List<Map<String, Object>> findAdminPage(
             @Param("goodsName") String goodsName,

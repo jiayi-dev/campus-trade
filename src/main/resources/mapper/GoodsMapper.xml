@@ -437,6 +437,15 @@
     </update>
 
 
+    <!-- 15.1 浏览数 +1：数据库端原子自增，同一时刻多人浏览也不会丢计数；
+         商品已被删除时 WHERE 匹配 0 行，天然满足"商品不存在不加浏览量" -->
+    <update id="incrementViewCount">
+        UPDATE goods
+        SET view_count = view_count + 1
+        WHERE goods_id = #{goodsId}
+    </update>
+
+
     <!--
         16. 管理员商品分页查询
         一条 SQL JOIN 出卖家名与分类名，避免 N+1

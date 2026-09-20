@@ -26,4 +26,10 @@ public interface FavoriteMapper {
             @Param("userId") Integer userId,
             @Param("goodsId") Integer goodsId
     );
+
+    // 批量查询当前用户已收藏的商品ID（列表页一次请求回显收藏状态，避免 N+1）
+    List<Integer> findFavoriteGoodsIds(
+            @Param("userId") Integer userId,
+            @Param("goodsIds") List<Integer> goodsIds
+    );
 }

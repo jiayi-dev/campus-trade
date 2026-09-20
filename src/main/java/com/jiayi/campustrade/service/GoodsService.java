@@ -2,6 +2,7 @@ package com.jiayi.campustrade.service;
 
 import com.jiayi.campustrade.entity.Goods;
 import com.jiayi.campustrade.entity.User;
+import com.jiayi.campustrade.mapper.GoodsImageMapper;
 import com.jiayi.campustrade.mapper.GoodsMapper;
 import com.jiayi.campustrade.mapper.OrderMapper;
 import com.jiayi.campustrade.mapper.UserMapper;
@@ -11,8 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jiayi.campustrade.auth.AuthContext;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class GoodsService {
@@ -25,6 +28,9 @@ public class GoodsService {
 
     @Autowired
     private OrderMapper orderMapper;
+
+    @Autowired
+    private GoodsImageMapper goodsImageMapper;
 
 
     // =========================
@@ -88,6 +94,90 @@ public class GoodsService {
     public Goods findById(Integer goodsId) {
 
         return goodsMapper.findById(goodsId);
+
+    }
+
+
+    // =========================
+    // 浏览量 +1（进入商品详情页时调用）
+    // =========================
+
+    /**
+     * 记录一次商品浏览，返回自增后的最新浏览量
+     *
+     * 业务规则：
+     * 1. 商品不存在（已删除）时不加，返回 -1 由前端忽略
+     * 2. 卖家本人浏览不计入：自己反复查看/编辑自己的商品不该虚增热度
+     * 3. 不引入浏览去重体系：每次成功进入详情页计一次（当前项目无浏览记录表，
+     *    简单方案更贴合课程项目阶段，避免为"完美去重"引入 Redis 等重设施）
+     */
+    public int increaseView(Integer goodsId) {
+
+        Goods goods = goodsMapper.findById(goodsId);
+
+        if (goods == null) {
+            return -1;
+        }
+
+        Integer userId = AuthContext.getUserId();
+
+        if (userId != null && userId.equals(goods.getUserId())) {
+            // 本人浏览不计，直接返回当前值（用于前端回显）
+            return goods.getViewCount() == null ? 0 : goods.getViewCount();
+        }
+
+        goodsMapper.incrementViewCount(goodsId);
+
+        int current = goods.getViewCount() == null ? 0 : goods.getViewCount();
+
+        return current + 1;
+
+    }
+
+
+    // =========================
+    // 商品图片：保存/替换/查询
+    // =========================
+
+    /**
+     * 全量替换商品图片（发布后首次保存与编辑商品保存共用同一个方法）
+     *
+     * 业务规则：
+     * 1. 归属校验：只有发布者本人（或管理员）能维护商品图片
+     * 2. 先删后插：天然幂等，发布/编辑重复提交不会产生重复图片记录
+     * 3. 第一张自动设为主图（is_primary=1），列表页封面与详情页首图都取它
+     * 4. 最多 9 张，超出部分截断（与前端上传限制保持一致）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void replaceImages(Integer goodsId, List<String> imageUrls) {
+
+        checkOwnership(goodsId);
+
+        List<String> urls = imageUrls == null
+                ? Collections.emptyList()
+                : imageUrls;
+
+        // 去空串、去首尾空格、去重，限制数量
+        List<String> cleanUrls = urls.stream()
+                .filter(url -> url != null && !url.trim().isEmpty())
+                .map(String::trim)
+                .distinct()
+                .limit(9)
+                .collect(Collectors.toList());
+
+        goodsImageMapper.deleteByGoodsId(goodsId);
+
+        for (int i = 0; i < cleanUrls.size(); i++) {
+            goodsImageMapper.insert(goodsId, cleanUrls.get(i), i, i == 0 ? 1 : 0);
+        }
+
+    }
+
+
+    // 查询商品全部图片 URL（主图在前），详情页多图展示用
+    public List<String> findImageUrls(Integer goodsId) {
+
+        return goodsImageMapper.findUrlsByGoodsId(goodsId);
 
     }
 
@@ -160,6 +250,11 @@ public class GoodsService {
     // 删除商品
     // =========================
 
+    /**
+     * 删除商品：goods 主记录与 goods_image 图片记录同一事务内删除，
+     * 避免商品删除后图片记录变成孤儿数据（物理图片文件保留，不影响磁盘安全）
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void deleteById(Integer goodsId) {
 
         // 归属校验：不是自己的商品（且非管理员）直接拒绝
@@ -174,6 +269,9 @@ public class GoodsService {
         }
 
         goodsMapper.deleteById(goodsId);
+
+        // 同步清理图片记录
+        goodsImageMapper.deleteByGoodsId(goodsId);
 
     }
 

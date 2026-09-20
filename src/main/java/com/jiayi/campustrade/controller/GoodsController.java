@@ -105,6 +105,66 @@ public class GoodsController {
 
 
     // =========================
+    // 浏览量 +1：POST /goods/11/view
+    // 进入商品详情页时由前端调用；编辑商品拉详情走 GET /goods/{id} 纯查询，
+    // 两个入口分离，避免编辑动作被误计为浏览。
+    // 返回自增后的最新浏览量，前端直接更新显示；商品不存在时 viewCount=-1
+    // =========================
+
+    @PostMapping("/{id}/view")
+    public Map<String, Object> addView(
+            @PathVariable("id") Integer goodsId) {
+
+        Map<String, Object> result = new HashMap<>();
+
+        result.put("viewCount", goodsService.increaseView(goodsId));
+
+        return result;
+
+    }
+
+
+    // =========================
+    // 商品图片查询：GET /goods/11/images
+    // 返回按 主图优先 → sort_order 排序的 URL 列表，详情页多图展示用
+    // =========================
+
+    @GetMapping("/{id}/images")
+    public List<String> findImages(
+            @PathVariable("id") Integer goodsId) {
+
+        return goodsService.findImageUrls(goodsId);
+
+    }
+
+
+    // =========================
+    // 商品图片保存/替换：POST 或 PUT /goods/11/images
+    // 请求体 { "imageUrls": ["...", "..."] }，第一张自动为主图
+    // 发布商品成功后首次保存、编辑商品保存时全量替换共用此接口（先删后插幂等）
+    // =========================
+
+    @RequestMapping(value = "/{id}/images", method = {RequestMethod.POST, RequestMethod.PUT})
+    public String saveImages(
+            @PathVariable("id") Integer goodsId,
+            @RequestBody Map<String, List<String>> body) {
+
+        try {
+
+            goodsService.replaceImages(goodsId, body.get("imageUrls"));
+
+            return "商品图片保存成功";
+
+        } catch (RuntimeException e) {
+
+            return e.getMessage();
+
+        }
+
+    }
+
+
+    // =========================
     // 新增商品
     // =========================
 
