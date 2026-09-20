@@ -12,12 +12,16 @@ import java.util.Map;
 public interface GoodsMapper {
 
 
-    // 动态条件分页查询
+    // 动态条件分页查询（JOIN goods_image 取主图 + 成色/校区筛选 + 多种排序）
+    // sortBy 取值：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序 / hot 热度（收藏数+浏览数）
     List<Goods> findPage(
             @Param("goodsName") String goodsName,
             @Param("categoryId") Integer categoryId,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
+            @Param("conditionLevel") Integer conditionLevel,
+            @Param("campus") String campus,
+            @Param("sortBy") String sortBy,
             @Param("offset") Integer offset,
             @Param("pageSize") Integer pageSize
     );
@@ -28,7 +32,9 @@ public interface GoodsMapper {
             @Param("goodsName") String goodsName,
             @Param("categoryId") Integer categoryId,
             @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("conditionLevel") Integer conditionLevel,
+            @Param("campus") String campus
     );
 
 
@@ -89,6 +95,12 @@ public interface GoodsMapper {
             @Param("goodsId") Integer goodsId,
             @Param("status") Integer status
     );
+
+    // 收藏数同步：新增收藏时 +1（FavoriteService 在事务内调用）
+    int incrementFavoriteCount(@Param("goodsId") Integer goodsId);
+
+    // 收藏数同步：取消收藏时 -1（带下限保护，避免减成负数）
+    int decrementFavoriteCount(@Param("goodsId") Integer goodsId);
 
     // 管理员：商品分页查询（JOIN 带出卖家名与分类名）
     List<Map<String, Object>> findAdminPage(

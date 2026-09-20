@@ -28,7 +28,7 @@ public class GoodsService {
 
 
     // =========================
-    // 实施六：分页查询
+    // 实施六：分页查询（JOIN 主图 + 成色/校区筛选 + 多种排序）
     // =========================
 
     public List<Goods> findPage(
@@ -36,6 +36,9 @@ public class GoodsService {
             Integer categoryId,
             BigDecimal minPrice,
             BigDecimal maxPrice,
+            Integer conditionLevel,
+            String campus,
+            String sortBy,
             Integer pageNum,
             Integer pageSize) {
 
@@ -46,6 +49,9 @@ public class GoodsService {
                 categoryId,
                 minPrice,
                 maxPrice,
+                conditionLevel,
+                campus,
+                sortBy,
                 offset,
                 pageSize
         );
@@ -53,20 +59,24 @@ public class GoodsService {
 
 
     // =========================
-    // 查询商品总数
+    // 查询商品总数（与 findPage 同筛选条件）
     // =========================
 
     public int count(
             String goodsName,
             Integer categoryId,
             BigDecimal minPrice,
-            BigDecimal maxPrice) {
+            BigDecimal maxPrice,
+            Integer conditionLevel,
+            String campus) {
 
         return goodsMapper.count(
                 goodsName,
                 categoryId,
                 minPrice,
-                maxPrice
+                maxPrice,
+                conditionLevel,
+                campus
         );
     }
 

@@ -37,10 +37,22 @@ public class GoodsController {
             @RequestParam(required = false)
             BigDecimal maxPrice,
 
+            // 成色：1=全新 2=99新 3=95新 4=9成新 5=8成新及以下
+            @RequestParam(required = false)
+            Integer conditionLevel,
+
+            // 校区：东区/西区/南区/北区等
+            @RequestParam(required = false)
+            String campus,
+
+            // 排序：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序 / hot 热度
+            @RequestParam(defaultValue = "latest")
+            String sortBy,
+
             @RequestParam(defaultValue = "1")
             Integer pageNum,
 
-            @RequestParam(defaultValue = "5")
+            @RequestParam(defaultValue = "12")
             Integer pageSize) {
 
 
@@ -49,6 +61,9 @@ public class GoodsController {
                 categoryId,
                 minPrice,
                 maxPrice,
+                conditionLevel,
+                campus,
+                sortBy,
                 pageNum,
                 pageSize
         );
@@ -58,7 +73,9 @@ public class GoodsController {
                 goodsName,
                 categoryId,
                 minPrice,
-                maxPrice
+                maxPrice,
+                conditionLevel,
+                campus
         );
 
 

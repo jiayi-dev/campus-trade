@@ -6,11 +6,11 @@
 
 <mapper namespace="com.jiayi.campustrade.mapper.GoodsMapper">
 
-    <!-- 1. 动态条件分页查询商品 -->
-    <select id="findPage"
-            resultType="com.jiayi.campustrade.entity.Goods">
-
-        SELECT
+    <!--
+        可复用商品列：包含全部持久化字段
+        imageUrl 为非持久化字段，仅在列表/详情查询时 LEFT JOIN 填充
+    -->
+    <sql id="goodsColumns">
         goods_id,
         user_id,
         category_id,
@@ -18,59 +18,130 @@
         description,
         price,
         status,
+        view_count,
+        favorite_count,
+        condition_level,
+        campus,
+        location,
         create_time
-        FROM goods
+    </sql>
+
+    <!--
+        1. 动态条件分页查询商品
+        - LEFT JOIN goods_image 取主图（按 is_primary DESC, sort_order ASC, image_id ASC 取第一条）
+        - 支持名称/分类/价格区间/成色/校区筛选
+        - 默认只显示在售商品（status=1）
+        - 支持四种排序：latest / price_asc / price_desc / hot
+    -->
+    <select id="findPage"
+            resultType="com.jiayi.campustrade.entity.Goods">
+
+        SELECT
+        g.goods_id        AS goodsId,
+        g.user_id         AS userId,
+        g.category_id     AS categoryId,
+        g.goods_name      AS goodsName,
+        g.description      AS description,
+        g.price            AS price,
+        g.status           AS status,
+        g.view_count       AS viewCount,
+        g.favorite_count   AS favoriteCount,
+        g.condition_level  AS conditionLevel,
+        g.campus           AS campus,
+        g.location         AS location,
+        g.create_time      AS createTime,
+        gi.image_url       AS imageUrl
+        FROM goods g
+        LEFT JOIN goods_image gi
+            ON gi.image_id = (
+                SELECT image_id FROM goods_image
+                WHERE goods_id = g.goods_id
+                ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+                LIMIT 1
+            )
 
         <where>
+            <!-- 列表页默认只展示在售商品（已下架不进入公开浏览） -->
+            g.status = 1
 
             <if test="goodsName != null and goodsName != ''">
-                AND goods_name LIKE CONCAT('%', #{goodsName}, '%')
+                AND g.goods_name LIKE CONCAT('%', #{goodsName}, '%')
             </if>
 
             <if test="categoryId != null">
-                AND category_id = #{categoryId}
+                AND g.category_id = #{categoryId}
             </if>
 
             <if test="minPrice != null">
-                AND price &gt;= #{minPrice}
+                AND g.price &gt;= #{minPrice}
             </if>
 
             <if test="maxPrice != null">
-                AND price &lt;= #{maxPrice}
+                AND g.price &lt;= #{maxPrice}
             </if>
 
+            <if test="conditionLevel != null">
+                AND g.condition_level = #{conditionLevel}
+            </if>
+
+            <if test="campus != null and campus != ''">
+                AND g.campus = #{campus}
+            </if>
         </where>
 
-        ORDER BY goods_id ASC
+        <choose>
+            <when test="sortBy == 'price_asc'">
+                ORDER BY g.price ASC, g.goods_id DESC
+            </when>
+            <when test="sortBy == 'price_desc'">
+                ORDER BY g.price DESC, g.goods_id DESC
+            </when>
+            <when test="sortBy == 'hot'">
+                ORDER BY g.favorite_count DESC, g.view_count DESC, g.goods_id DESC
+            </when>
+            <otherwise>
+                ORDER BY g.create_time DESC, g.goods_id DESC
+            </otherwise>
+        </choose>
 
         LIMIT #{offset}, #{pageSize}
 
     </select>
 
 
-    <!-- 2. 查询符合条件的商品总数 -->
+    <!-- 2. 查询符合条件的商品总数（与 findPage 同条件，但不 JOIN 图片以提升性能） -->
     <select id="count"
             resultType="int">
 
         SELECT COUNT(*)
-        FROM goods
+        FROM goods g
 
         <where>
 
+            g.status = 1
+
             <if test="goodsName != null and goodsName != ''">
-                AND goods_name LIKE CONCAT('%', #{goodsName}, '%')
+                AND g.goods_name LIKE CONCAT('%', #{goodsName}, '%')
             </if>
 
             <if test="categoryId != null">
-                AND category_id = #{categoryId}
+                AND g.category_id = #{categoryId}
             </if>
 
             <if test="minPrice != null">
-                AND price &gt;= #{minPrice}
+                AND g.price &gt;= #{minPrice}
             </if>
 
             <if test="maxPrice != null">
-                AND price &lt;= #{maxPrice}
+                AND g.price &lt;= #{maxPrice}
+            </if>
+
+            <if test="conditionLevel != null">
+                AND g.condition_level = #{conditionLevel}
+            </if>
+
+            <if test="campus != null and campus != ''">
+                AND g.campus = #{campus}
             </if>
 
         </where>
@@ -78,26 +149,39 @@
     </select>
 
 
-    <!-- 3. 根据商品ID查询商品详情 -->
+    <!-- 3. 根据商品ID查询商品详情（带新字段 + 主图 URL） -->
     <select id="findById"
             resultType="com.jiayi.campustrade.entity.Goods">
 
         SELECT
-        goods_id,
-        user_id,
-        category_id,
-        goods_name,
-        description,
-        price,
-        status,
-        create_time
-        FROM goods
-        WHERE goods_id = #{goodsId}
+        g.goods_id        AS goodsId,
+        g.user_id         AS userId,
+        g.category_id     AS categoryId,
+        g.goods_name      AS goodsName,
+        g.description      AS description,
+        g.price            AS price,
+        g.status           AS status,
+        g.view_count       AS viewCount,
+        g.favorite_count   AS favoriteCount,
+        g.condition_level  AS conditionLevel,
+        g.campus           AS campus,
+        g.location         AS location,
+        g.create_time      AS createTime,
+        gi.image_url       AS imageUrl
+        FROM goods g
+        LEFT JOIN goods_image gi
+            ON gi.image_id = (
+                SELECT image_id FROM goods_image
+                WHERE goods_id = g.goods_id
+                ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+                LIMIT 1
+            )
+        WHERE g.goods_id = #{goodsId}
 
     </select>
 
 
-    <!-- 4. 新增商品 -->
+    <!-- 4. 新增商品（新字段允许 NULL，发布商品页改造时前端可传入） -->
     <insert id="insert"
             useGeneratedKeys="true"
             keyProperty="goodsId"
@@ -111,6 +195,11 @@
         description,
         price,
         status,
+        view_count,
+        favorite_count,
+        condition_level,
+        campus,
+        location,
         create_time
         )
         VALUES
@@ -121,13 +210,18 @@
         #{description},
         #{price},
         #{status},
+        0,
+        0,
+        #{conditionLevel},
+        #{campus},
+        #{location},
         NOW()
         )
 
     </insert>
 
 
-    <!-- 5. 修改商品 -->
+    <!-- 5. 修改商品（动态 SET；编辑时不允许改 status / view_count / favorite_count） -->
     <update id="update">
 
         UPDATE goods
@@ -150,9 +244,20 @@
                 price = #{price},
             </if>
 
-            <if test="status != null">
-                status = #{status},
+            <if test="conditionLevel != null">
+                condition_level = #{conditionLevel},
             </if>
+
+            <if test="campus != null">
+                campus = #{campus},
+            </if>
+
+            <if test="location != null">
+                location = #{location},
+            </if>
+
+            <!-- status 由独立接口 updateStatus 控制，编辑不允许改动 -->
+            <!-- view_count / favorite_count 由系统维护，编辑不允许改动 -->
 
         </set>
 
@@ -170,14 +275,15 @@
     </delete>
 
 
-    <!-- 7. 批量新增商品 -->
+    <!-- 7. 批量新增商品（新字段透传） -->
     <insert id="batchInsert"
             useGeneratedKeys="true"
             keyProperty="goodsId"
             keyColumn="goods_id">
 
         INSERT INTO goods
-        (user_id, category_id, goods_name, description, price, status, create_time)
+        (user_id, category_id, goods_name, description, price, status,
+         view_count, favorite_count, condition_level, campus, location, create_time)
         VALUES
         <foreach collection="list"
                 item="item"
@@ -190,6 +296,11 @@
             #{item.description},
             #{item.price},
             #{item.status},
+            0,
+            0,
+            #{item.conditionLevel},
+            #{item.campus},
+            #{item.location},
             NOW()
             )
 
@@ -199,9 +310,9 @@
 
 
     <!--
-    ============================
-    实施九：统计功能
-    ============================
+        ============================
+        实施九：统计功能
+        ============================
     -->
 
     <!-- 8. 商品首页统计 -->
@@ -209,10 +320,10 @@
             resultType="java.util.Map">
 
         SELECT
-        (SELECT COUNT(*) FROM goods) AS goodsCount,
+        (SELECT COUNT(*) FROM goods WHERE status = 1) AS goodsCount,
         (SELECT COUNT(*) FROM `user`) AS userCount,
-        (SELECT COUNT(DISTINCT category_id) FROM goods) AS categoryCount,
-        (SELECT IFNULL(SUM(price), 0) FROM goods) AS totalPrice
+        (SELECT COUNT(DISTINCT category_id) FROM goods WHERE status = 1) AS categoryCount,
+        (SELECT IFNULL(SUM(price), 0) FROM goods WHERE status = 1) AS totalPrice
 
     </select>
 
@@ -227,7 +338,7 @@
         IFNULL(ROUND(AVG(g.price), 2), 0) AS avgPrice,
         COUNT(g.goods_id) AS goodsCount
         FROM category c
-        LEFT JOIN goods g ON c.category_id = g.category_id
+        LEFT JOIN goods g ON c.category_id = g.category_id AND g.status = 1
         GROUP BY c.category_id, c.category_name
         ORDER BY avgPrice DESC
 
@@ -248,33 +359,48 @@
         END AS priceRange,
         COUNT(*) AS goodsCount
         FROM goods
+        WHERE status = 1
         GROUP BY priceRange
         ORDER BY MIN(price)
 
     </select>
 
 
+    <!-- 11. 我的商品（带新字段 + 主图） -->
     <select id="findMyGoods"
             parameterType="java.lang.Integer"
             resultType="com.jiayi.campustrade.entity.Goods">
 
         SELECT
-        goods_id,
-        user_id,
-        category_id,
-        goods_name,
-        description,
-        price,
-        status,
-        create_time
-        FROM goods
-        WHERE user_id = #{userId}
-        ORDER BY create_time DESC, goods_id DESC
+        g.goods_id        AS goodsId,
+        g.user_id         AS userId,
+        g.category_id     AS categoryId,
+        g.goods_name      AS goodsName,
+        g.description      AS description,
+        g.price            AS price,
+        g.status           AS status,
+        g.view_count       AS viewCount,
+        g.favorite_count   AS favoriteCount,
+        g.condition_level  AS conditionLevel,
+        g.campus           AS campus,
+        g.location         AS location,
+        g.create_time      AS createTime,
+        gi.image_url       AS imageUrl
+        FROM goods g
+        LEFT JOIN goods_image gi
+            ON gi.image_id = (
+                SELECT image_id FROM goods_image
+                WHERE goods_id = g.goods_id
+                ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+                LIMIT 1
+            )
+        WHERE g.user_id = #{userId}
+        ORDER BY g.create_time DESC, g.goods_id DESC
 
     </select>
 
 
-    <!-- 条件更新：只有在售商品才能被改成目标状态，用于下单时的并发抢占 -->
+    <!-- 12. 条件更新：只有在售商品才能被改成目标状态，用于下单时的并发抢占 -->
     <update id="updateStatusIfOnSale">
 
         UPDATE goods
@@ -285,7 +411,7 @@
     </update>
 
 
-    <!-- 商品状态流转（下架/上架）：归属与业务规则由 Service 层校验后调用 -->
+    <!-- 13. 商品状态流转（下架/上架）：归属与业务规则由 Service 层校验后调用 -->
     <update id="updateStatus">
 
         UPDATE goods
@@ -295,22 +421,44 @@
     </update>
 
 
+    <!-- 14. 收藏数 +1（FavoriteService 在事务内调用，保证 favorite 表与 favorite_count 一致） -->
+    <update id="incrementFavoriteCount">
+        UPDATE goods
+        SET favorite_count = favorite_count + 1
+        WHERE goods_id = #{goodsId}
+    </update>
+
+
+    <!-- 15. 收藏数 -1（带下限保护，避免 favorite 表数据异常导致减成负数） -->
+    <update id="decrementFavoriteCount">
+        UPDATE goods
+        SET favorite_count = GREATEST(favorite_count - 1, 0)
+        WHERE goods_id = #{goodsId}
+    </update>
+
+
     <!--
-        管理员商品分页查询
+        16. 管理员商品分页查询
         一条 SQL JOIN 出卖家名与分类名，避免 N+1
+        也带出 view_count / favorite_count / condition_level / campus / location
     -->
     <select id="findAdminPage"
             resultType="java.util.Map">
 
         SELECT
-        g.goods_id      AS goodsId,
-        g.goods_name    AS goodsName,
-        g.price         AS price,
-        g.status        AS status,
-        g.create_time   AS createTime,
-        g.user_id       AS userId,
-        u.username      AS sellerName,
-        c.category_name AS categoryName
+        g.goods_id        AS goodsId,
+        g.goods_name      AS goodsName,
+        g.price           AS price,
+        g.status          AS status,
+        g.view_count      AS viewCount,
+        g.favorite_count  AS favoriteCount,
+        g.condition_level AS conditionLevel,
+        g.campus          AS campus,
+        g.location        AS location,
+        g.create_time     AS createTime,
+        g.user_id         AS userId,
+        u.username        AS sellerName,
+        c.category_name   AS categoryName
         FROM goods g
         LEFT JOIN `user` u ON g.user_id = u.user_id
         LEFT JOIN category c ON g.category_id = c.category_id
@@ -337,7 +485,7 @@
     </select>
 
 
-    <!-- 管理员商品总数 -->
+    <!-- 17. 管理员商品总数 -->
     <select id="countAdmin"
             resultType="int">
 

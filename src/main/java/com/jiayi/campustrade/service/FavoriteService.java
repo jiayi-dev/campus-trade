@@ -1,6 +1,7 @@
 package com.jiayi.campustrade.service;
 
 import com.jiayi.campustrade.mapper.FavoriteMapper;
+import com.jiayi.campustrade.mapper.GoodsMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,11 @@ public class FavoriteService {
 
     @Autowired
     private FavoriteMapper favoriteMapper;
+
+    // 注入 GoodsMapper 用于同步 goods.favorite_count 冗余字段
+    // 冗余字段的目的：列表页展示收藏数时避免对每条商品 JOIN favorite 表 COUNT，性能更好
+    @Autowired
+    private GoodsMapper goodsMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public void batchProcess(List<FavoriteItem> list) {
@@ -50,21 +56,41 @@ public class FavoriteService {
         }
     }
 
-    // 单个收藏（幂等：已收藏时只更新收藏时间，不会产生重复记录）
+    /**
+     * 单个收藏（幂等：已收藏时只更新收藏时间，不会产生重复记录）
+     * 同时事务内同步 goods.favorite_count +1，保证冗余字段与 favorite 表一致
+     * 注意：幂等场景下重复收藏不会让 favorite_count 重复 +1（只在真正新增时才 +1）
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void addFavorite(Integer userId, Integer goodsId) {
 
         int count = favoriteMapper.findByUserIdAndGoodsId(userId, goodsId);
 
         if (count > 0) {
+            // 已收藏：仅刷新时间，不重复 +1 favorite_count
             favoriteMapper.updateTime(userId, goodsId);
         } else {
+            // 新收藏：先插入 favorite 表，再同步 goods.favorite_count
             favoriteMapper.insert(userId, goodsId);
+            goodsMapper.incrementFavoriteCount(goodsId);
         }
     }
 
-    // 取消收藏（未收藏时删除 0 行，也视为成功）
+    /**
+     * 取消收藏（未收藏时删除 0 行，也视为成功）
+     * 同步事务内 goods.favorite_count -1，GREATEST 函数兜底防止减成负数
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void cancelFavorite(Integer userId, Integer goodsId) {
+
+        // 先确认是否真的收藏过，避免未收藏时 favorite_count 误减
+        int count = favoriteMapper.findByUserIdAndGoodsId(userId, goodsId);
+
         favoriteMapper.delete(userId, goodsId);
+
+        if (count > 0) {
+            goodsMapper.decrementFavoriteCount(goodsId);
+        }
     }
 
     // 当前用户是否已收藏该商品
