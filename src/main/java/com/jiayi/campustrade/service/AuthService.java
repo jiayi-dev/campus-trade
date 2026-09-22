@@ -24,18 +24,51 @@ public class AuthService {
             new BCryptPasswordEncoder();
 
     // 管理员登录
+    // 严格匹配 admin 角色，防止 seller / student 通过管理员入口进入后台
     public Map<String, Object> adminLogin(String username, String password) {
-        return login(username, password, "admin");
+
+        User user = userMapper.findByUsername(username);
+
+        if (user == null
+                || user.getStatus() == null
+                || user.getStatus() != 1
+                || !"admin".equals(user.getRole())
+                || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("账号或密码错误");
+        }
+
+        return buildLoginResult(user);
     }
 
     // 学生登录
+    // 学生 / 卖家共用同一登录入口：拒绝 admin 角色，但不强制区分 student / seller
+    // 因为 student 审核通过后数据库 role 会变成 seller，强制匹配会让其无法登录
+    // 真实身份以数据库 role 为准，登录成功后返回真实 role，由前端展示与控制权限
     public Map<String, Object> studentLogin(String username, String password) {
-        return login(username, password, "student");
+        return userLogin(username, password);
     }
 
     // 卖家登录
+    // 与学生登录共用同一登录逻辑（兼容旧端点）
     public Map<String, Object> sellerLogin(String username, String password) {
-        return login(username, password, "seller");
+        return userLogin(username, password);
+    }
+
+    // 通用用户登录：学生 / 卖家共用
+    // 仅拒绝 admin（管理员只能走 adminLogin），其余只要账号正常 + 密码正确即放行
+    private Map<String, Object> userLogin(String username, String password) {
+
+        User user = userMapper.findByUsername(username);
+
+        if (user == null
+                || user.getStatus() == null
+                || user.getStatus() != 1
+                || "admin".equals(user.getRole())
+                || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("账号或密码错误");
+        }
+
+        return buildLoginResult(user);
     }
 
     // 当前登录用户信息（从登录上下文取 userId，再查库拿最新角色）
@@ -60,31 +93,12 @@ public class AuthService {
         return result;
     }
 
-    // 真正执行登录业务的核心方法
-    private Map<String, Object> login(
-            String username,
-            String password,
-            String expectedRole) {
+    // 组装登录成功返回结果
+    // 注意：这里故意不返回 password
+    private Map<String, Object> buildLoginResult(User user) {
 
-        // 1. 根据用户名查询用户
-        User user = userMapper.findByUsername(username);
-
-        // 2. 用户不存在、账号被禁用、角色不匹配、密码错误
-        //    都统一提示，避免暴露账号信息
-        if (user == null
-                || user.getStatus() == null
-                || user.getStatus() != 1
-                || !expectedRole.equals(user.getRole())
-                || !passwordEncoder.matches(password, user.getPassword())) {
-
-            throw new RuntimeException("账号或密码错误");
-        }
-
-        // 3. 登录成功，创建 Token
         String token = tokenManager.createToken(user.getUserId());
 
-        // 4. 手工组装返回结果
-        //    注意：这里故意不返回 password
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
         result.put("userId", user.getUserId());
