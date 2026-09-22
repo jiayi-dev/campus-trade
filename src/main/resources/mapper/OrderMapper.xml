@@ -59,6 +59,7 @@
         买家 / 卖家视角共用的展示字段：
         orders JOIN goods 带出商品名称、成交价格、商品当前状态
         orders JOIN user 两次，分别带出买家昵称与卖家昵称
+        orders JOIN goods_image 带出商品主图（按主图优先链：is_primary DESC → sort_order ASC → image_id ASC）
         一条 SQL 拿齐列表所需信息，避免前端循环请求造成 N+1
     -->
     <sql id="orderDetailColumns">
@@ -74,11 +75,19 @@
         o.seller_id     AS sellerId,
         su.username     AS sellerName,
         o.order_status  AS orderStatus,
-        o.create_time   AS createTime
+        o.create_time   AS createTime,
+        gi.image_url    AS imageUrl
         FROM orders o
         LEFT JOIN goods g ON o.goods_id = g.goods_id
         LEFT JOIN `user` bu ON o.buyer_id = bu.user_id
         LEFT JOIN `user` su ON o.seller_id = su.user_id
+        LEFT JOIN goods_image gi
+            ON gi.image_id = (
+                SELECT image_id FROM goods_image
+                WHERE goods_id = o.goods_id
+                ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+                LIMIT 1
+            )
 
     </sql>
 

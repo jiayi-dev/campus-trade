@@ -26,7 +26,12 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/auth/**",
+                        // 仅放行无需登录态的接口
+                        // 注意：不再使用 /auth/** 通配，否则 /auth/me 也会被放行，
+                        // 导致 AuthContext 永远不被写入，下游 AuthService.currentUser() 拿到 userId=null
+                        "/auth/student/login",
+                        "/auth/seller/login",
+                        "/auth/admin/login",
                         "/user/register",
                         // 上传后的图片走静态资源映射对外访问：
                         // <img src> 请求不会携带 Authorization 请求头，
