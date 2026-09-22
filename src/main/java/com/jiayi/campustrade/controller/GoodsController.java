@@ -45,7 +45,8 @@ public class GoodsController {
             @RequestParam(required = false)
             String campus,
 
-            // 排序：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序 / hot 热度
+            // 排序：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序
+            //       / hot 热度 / treasure 基于浏览量和收藏量的业务加权排序
             @RequestParam(defaultValue = "latest")
             String sortBy,
 

@@ -13,7 +13,8 @@ public interface GoodsMapper {
 
 
     // 动态条件分页查询（JOIN goods_image 取主图 + 成色/校区筛选 + 多种排序）
-    // sortBy 取值：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序 / hot 热度（收藏数+浏览数）
+    // sortBy 取值：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序
+    //              / hot 热度（收藏数+浏览数）/ treasure 基于浏览量和收藏量的业务加权排序
     List<Goods> findPage(
             @Param("goodsName") String goodsName,
             @Param("categoryId") Integer categoryId,

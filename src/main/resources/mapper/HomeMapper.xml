@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.HomeMapper">
+
+    <!--
+        首页平台概览：用子查询一次性返回多个统计指标
+        - onSaleCount       在售商品数（status=1）
+        - totalTradeCount   已完成交易数（orders.order_status=1，0=待交易 1=已完成）
+        - sellerCount       校园卖家数（role=seller）
+        - totalFavoriteCount 累计收藏数
+        - avgTradeDays      平均流转天数：商品发布(g.create_time) → 订单创建(o.create_time)，
+                            仅统计已完成订单；无已完成订单时为 0
+        不含"累计流转金额"：orders 未存独立成交价，用 goods.price 近似会因商品价格被修改而失真
+    -->
+    <select id="overview"
+            resultType="java.util.Map">
+
+        SELECT
+        (SELECT COUNT(*) FROM goods WHERE status = 1) AS onSaleCount,
+        (SELECT COUNT(*) FROM orders WHERE order_status = 1) AS totalTradeCount,
+        (SELECT COUNT(*) FROM `user` WHERE role = 'seller') AS sellerCount,
+        (SELECT COUNT(*) FROM favorite) AS totalFavoriteCount,
+        (SELECT IFNULL(ROUND(AVG(TIMESTAMPDIFF(DAY, g.create_time, o.create_time)), 1), 0)
+        FROM orders o JOIN goods g ON g.goods_id = o.goods_id
+        WHERE o.order_status = 1) AS avgTradeDays
+
+    </select>
+
+
+    <!-- 真实有在售商品的校区（DISTINCT），无数据返回空列表，由前端隐藏校园专区区块 -->
+    <select id="findOnSaleCampuses"
+            resultType="java.lang.String">
+
+        SELECT DISTINCT g.campus
+        FROM goods g
+        WHERE g.status = 1
+          AND g.campus IS NOT NULL
+          AND g.campus != ''
+        ORDER BY g.campus ASC
+
+    </select>
+
+</mapper>

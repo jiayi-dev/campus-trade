@@ -99,6 +99,12 @@
             <when test="sortBy == 'hot'">
                 ORDER BY g.favorite_count DESC, g.view_count DESC, g.goods_id DESC
             </when>
+            <when test="sortBy == 'treasure'">
+                <!-- treasure：基于浏览量和收藏量的业务加权排序（非机器学习推荐）
+                     权重设计：收藏一次代表强意向 ×3，浏览一次代表弱意向 ×0.1
+                     同分时按发布时间倒序兜底，最后用 goods_id 保证稳定排序 -->
+                ORDER BY (g.favorite_count * 3 + g.view_count * 0.1) DESC, g.create_time DESC, g.goods_id DESC
+            </when>
             <otherwise>
                 ORDER BY g.create_time DESC, g.goods_id DESC
             </otherwise>
