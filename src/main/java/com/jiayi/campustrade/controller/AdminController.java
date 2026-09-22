@@ -158,6 +158,65 @@ public class AdminController {
 
 
     // =========================
+    // 卖家申请审核
+    // =========================
+
+    // 申请分页列表（status 筛选：0待审核 1已通过 2已拒绝；JOIN 申请人/审核人信息）
+    @GetMapping("/seller-applications")
+    public Map<String, Object> sellerApplications(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "8") Integer pageSize) {
+
+        List<Map<String, Object>> list =
+                adminService.findApplications(status, pageNum, pageSize);
+        int total = adminService.countApplications(status);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", list);
+        result.put("total", total);
+        result.put("pageNum", pageNum);
+        result.put("pageSize", pageSize);
+
+        return result;
+    }
+
+    // 通过申请：申请状态→已通过，user.role→seller（同一事务）
+    // body: { "reviewComment": "可选审核意见" }
+    @PutMapping("/seller-applications/{id}/approve")
+    public String approveApplication(
+            @PathVariable("id") Integer applicationId,
+            @RequestBody(required = false) Map<String, Object> body) {
+
+        String comment = body == null ? null : String.valueOf(body.get("reviewComment"));
+
+        try {
+            adminService.approveApplication(applicationId, "null".equals(comment) ? null : comment);
+            return "申请已通过，用户已成为卖家";
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+    }
+
+    // 拒绝申请：body: { "reviewComment": "必填审核意见" }，user.role 保持 student
+    @PutMapping("/seller-applications/{id}/reject")
+    public String rejectApplication(
+            @PathVariable("id") Integer applicationId,
+            @RequestBody Map<String, Object> body) {
+
+        Object commentObj = body == null ? null : body.get("reviewComment");
+        String comment = commentObj == null ? null : String.valueOf(commentObj);
+
+        try {
+            adminService.rejectApplication(applicationId, comment);
+            return "申请已拒绝";
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+    }
+
+
+    // =========================
     // 操作记录
     // =========================
 

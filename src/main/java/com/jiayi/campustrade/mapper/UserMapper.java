@@ -47,4 +47,10 @@ public interface UserMapper {
             @Param("status") Integer status
     );
 
+    // 卖家申请审核通过：仅更新 role 字段（student → seller）
+    int updateRole(
+            @Param("userId") Integer userId,
+            @Param("role") String role
+    );
+
 }

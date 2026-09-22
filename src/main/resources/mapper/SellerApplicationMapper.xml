@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.SellerApplicationMapper">
+
+    <!-- 学生提交申请：status 走数据库默认值 0（待审核），时间取数据库当前时间 -->
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.SellerApplication"
+            useGeneratedKeys="true"
+            keyProperty="applicationId"
+            keyColumn="application_id">
+
+        INSERT INTO seller_application
+        (user_id, reason, create_time)
+        VALUES
+        (#{userId}, #{reason}, NOW())
+
+    </insert>
+
+
+    <select id="findById"
+            resultType="com.jiayi.campustrade.entity.SellerApplication">
+
+        SELECT
+        application_id,
+        user_id,
+        reason,
+        status,
+        reviewer_id,
+        review_comment,
+        create_time,
+        review_time
+        FROM seller_application
+        WHERE application_id = #{applicationId}
+
+    </select>
+
+
+    <!-- 待审核申请（一个用户最多只有一条） -->
+    <select id="findPendingByUserId"
+            resultType="com.jiayi.campustrade.entity.SellerApplication">
+
+        SELECT
+        application_id,
+        user_id,
+        reason,
+        status,
+        reviewer_id,
+        review_comment,
+        create_time,
+        review_time
+        FROM seller_application
+        WHERE user_id = #{userId}
+          AND status = 0
+        ORDER BY application_id DESC
+        LIMIT 1
+
+    </select>
+
+
+    <!-- 最新一条申请（学生状态页） -->
+    <select id="findLatestByUserId"
+            resultType="com.jiayi.campustrade.entity.SellerApplication">
+
+        SELECT
+        application_id,
+        user_id,
+        reason,
+        status,
+        reviewer_id,
+        review_comment,
+        create_time,
+        review_time
+        FROM seller_application
+        WHERE user_id = #{userId}
+        ORDER BY application_id DESC
+        LIMIT 1
+
+    </select>
+
+
+    <!--
+        管理员分页列表
+        JOIN user 两次：申请人信息 + 审核人姓名
+        列显式起驼峰别名，保证前端拿到稳定的 Map key
+    -->
+    <select id="findAdminPage"
+            resultType="java.util.LinkedHashMap">
+
+        SELECT
+        a.application_id   AS applicationId,
+        a.user_id          AS userId,
+        a.reason           AS reason,
+        a.status           AS status,
+        a.reviewer_id      AS reviewerId,
+        a.review_comment   AS reviewComment,
+        a.create_time      AS createTime,
+        a.review_time      AS reviewTime,
+        u.username         AS username,
+        u.phone            AS phone,
+        r.username         AS reviewerName
+        FROM seller_application a
+        LEFT JOIN user u ON a.user_id = u.user_id
+        LEFT JOIN user r ON a.reviewer_id = r.user_id
+
+        <where>
+            <if test="status != null">
+                AND a.status = #{status}
+            </if>
+        </where>
+
+        ORDER BY a.application_id DESC
+        LIMIT #{offset}, #{pageSize}
+
+    </select>
+
+
+    <select id="countByStatus"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM seller_application
+
+        <where>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+
+    </select>
+
+
+    <!--
+        审核：条件更新防并发重复审核
+        只有 status = 0 才能更新成功；重复审核影响 0 行
+    -->
+    <update id="review">
+
+        UPDATE seller_application
+        SET
+        status = #{status},
+        reviewer_id = #{reviewerId},
+        review_comment = #{reviewComment},
+        review_time = NOW()
+        WHERE application_id = #{applicationId}
+          AND status = 0
+
+    </update>
+
+</mapper>

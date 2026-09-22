@@ -131,4 +131,14 @@
 
     </update>
 
+
+    <!-- 卖家申请审核通过：只更新 role -->
+    <update id="updateRole">
+
+        UPDATE user
+        SET role = #{role}
+        WHERE user_id = #{userId}
+
+    </update>
+
 </mapper>

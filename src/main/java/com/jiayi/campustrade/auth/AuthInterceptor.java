@@ -70,7 +70,14 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         // 8. 卖家权限
-        if (uri.startsWith("/api/seller/")
+        //    例外：学生「申请成为卖家」的两个接口对 student 开放，
+        //    真正的角色与申请状态校验在 SellerApplicationService 中完成。
+        boolean isSellerApplicationEntry =
+                "/api/seller/apply".equals(uri)
+                        || "/api/seller/application/my".equals(uri);
+
+        if (!isSellerApplicationEntry
+                && uri.startsWith("/api/seller/")
                 && !"seller".equals(user.getRole())
                 && !"admin".equals(user.getRole())) {
 

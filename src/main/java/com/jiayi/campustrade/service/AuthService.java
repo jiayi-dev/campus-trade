@@ -1,5 +1,6 @@
 package com.jiayi.campustrade.service;
 
+import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.auth.TokenManager;
 import com.jiayi.campustrade.entity.User;
 import com.jiayi.campustrade.mapper.UserMapper;
@@ -35,6 +36,28 @@ public class AuthService {
     // 卖家登录
     public Map<String, Object> sellerLogin(String username, String password) {
         return login(username, password, "seller");
+    }
+
+    // 当前登录用户信息（从登录上下文取 userId，再查库拿最新角色）
+    // 用途：学生卖家申请被通过后，前端可据此感知真实 role，不依赖登录时缓存的旧角色
+    public Map<String, Object> currentUser() {
+
+        Integer userId = AuthContext.getUserId();
+
+        User user = userMapper.findById(userId);
+
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", user.getUserId());
+        result.put("username", user.getUsername());
+        result.put("role", user.getRole());
+        result.put("phone", user.getPhone());
+        result.put("status", user.getStatus());
+
+        return result;
     }
 
     // 真正执行登录业务的核心方法

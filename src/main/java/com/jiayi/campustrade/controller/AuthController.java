@@ -13,6 +13,12 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    // 当前登录用户信息（角色以数据库实时值为准）
+    @GetMapping("/me")
+    public Map<String, Object> me() {
+        return authService.currentUser();
+    }
+
     // 管理员登录
     @PostMapping("/admin/login")
     public Map<String, Object> adminLogin(
