@@ -1,5 +1,6 @@
 package com.jiayi.campustrade.service;
 
+import com.jiayi.campustrade.entity.Goods;
 import com.jiayi.campustrade.mapper.HomeMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -48,5 +49,15 @@ public class HomeService {
         result.put("campuses", campuses);
 
         return result;
+    }
+
+    /**
+     * 登录前产品首页（/landing）精选商品
+     *
+     * 公开只读接口：只返回在售商品本身字段 + 主图，按收藏/浏览热度排序，
+     * 不含买家/卖家任何敏感信息；limit 由 Controller 收敛上限，防止被当成分页接口滥用。
+     */
+    public List<Goods> showcase(int limit) {
+        return homeMapper.findShowcase(limit);
     }
 }

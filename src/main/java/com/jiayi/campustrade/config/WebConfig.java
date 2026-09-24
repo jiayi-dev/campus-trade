@@ -36,6 +36,8 @@ public class WebConfig implements WebMvcConfigurer {
                         // 首页平台概览：公开接口（在售数/已完成交易数/卖家数/收藏数/动态校区），
                         // 无需登录即可展示首页平台数据
                         "/home/overview",
+                        // 登录前产品首页精选商品：公开只读（在售商品+主图，无用户敏感信息）
+                        "/home/showcase",
                         // 上传后的图片走静态资源映射对外访问：
                         // <img src> 请求不会携带 Authorization 请求头，
                         // 不放行会导致所有图片 401；文件名为 UUID 随机串，可防枚举

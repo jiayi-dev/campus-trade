@@ -44,4 +44,41 @@
 
     </select>
 
+
+    <!--
+        /landing 精选商品：在售商品按热度（收藏→浏览）排序取前 N 件
+        主图选取规则与商品列表一致：is_primary DESC → sort_order ASC → image_id ASC
+    -->
+    <select id="findShowcase"
+            resultType="com.jiayi.campustrade.entity.Goods">
+
+        SELECT
+        g.goods_id        AS goodsId,
+        g.user_id         AS userId,
+        g.category_id     AS categoryId,
+        g.goods_name      AS goodsName,
+        g.description     AS description,
+        g.price           AS price,
+        g.status          AS status,
+        g.view_count      AS viewCount,
+        g.favorite_count  AS favoriteCount,
+        g.condition_level AS conditionLevel,
+        g.campus          AS campus,
+        g.location        AS location,
+        g.create_time     AS createTime,
+        gi.image_url      AS imageUrl
+        FROM goods g
+        LEFT JOIN goods_image gi
+            ON gi.image_id = (
+                SELECT image_id FROM goods_image
+                WHERE goods_id = g.goods_id
+                ORDER BY is_primary DESC, sort_order ASC, image_id ASC
+                LIMIT 1
+            )
+        WHERE g.status = 1
+        ORDER BY g.favorite_count DESC, g.view_count DESC, g.goods_id DESC
+        LIMIT #{limit}
+
+    </select>
+
 </mapper>

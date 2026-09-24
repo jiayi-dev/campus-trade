@@ -1,6 +1,8 @@
 package com.jiayi.campustrade.mapper;
 
+import com.jiayi.campustrade.entity.Goods;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import java.util.Map;
@@ -15,4 +17,8 @@ public interface HomeMapper {
 
     // 真实有在售商品的校区列表（首页动态生成校园专区，不前端写死）
     List<String> findOnSaleCampuses();
+
+    // 登录前产品首页（/landing）精选商品：在售 + 主图，按收藏/浏览热度排序
+    // 公开只读数据，不含任何用户敏感信息
+    List<Goods> findShowcase(@Param("limit") int limit);
 }
