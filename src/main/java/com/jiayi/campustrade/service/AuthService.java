@@ -5,8 +5,10 @@ import com.jiayi.campustrade.auth.TokenManager;
 import com.jiayi.campustrade.entity.User;
 import com.jiayi.campustrade.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +36,9 @@ public class AuthService {
                 || user.getStatus() != 1
                 || !"admin".equals(user.getRole())
                 || !passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("账号或密码错误");
+            // 认证失败统一映射为 HTTP 401（原来是裸 RuntimeException → 500，前端只能提示"请求失败"）
+            // 不区分"账号不存在/密码错误/账号停用"，避免泄露用户名是否存在
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
         }
 
         return buildLoginResult(user);
@@ -65,7 +69,8 @@ public class AuthService {
                 || user.getStatus() != 1
                 || "admin".equals(user.getRole())
                 || !passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("账号或密码错误");
+            // 认证失败统一映射为 HTTP 401，前端据此提示"账号或密码错误"而非"请求失败"
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
         }
 
         return buildLoginResult(user);
