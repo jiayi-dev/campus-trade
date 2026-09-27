@@ -195,6 +195,35 @@ public class GoodsService {
             throw new RuntimeException("当前用户未登录");
         }
 
+        // 发布权限：卖家可发布；管理员保留平台管理兜底；
+        // 学生需先走「申请成为卖家 → 管理员审核」流程（与前端 /publish 引导页一致）
+        User publisher = userMapper.findById(userId);
+
+        boolean canPublish = publisher != null
+                && ("seller".equals(publisher.getRole())
+                    || "admin".equals(publisher.getRole()));
+
+        if (!canPublish) {
+            throw new RuntimeException("成为卖家后即可发布商品，请先完成卖家申请");
+        }
+
+        // 必填项与合法性校验（与 update 对齐，防止绕过前端直接提交脏数据）
+        if (goods.getGoodsName() == null || goods.getGoodsName().trim().isEmpty()) {
+            throw new RuntimeException("商品名称不能为空");
+        }
+
+        if (goods.getCategoryId() == null) {
+            throw new RuntimeException("请选择商品分类");
+        }
+
+        if (goods.getPrice() == null) {
+            throw new RuntimeException("商品价格不能为空");
+        }
+
+        if (goods.getPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("商品价格不能小于0");
+        }
+
         goods.setUserId(userId);
 
         // 新商品默认在售，不信任前端传入的状态
