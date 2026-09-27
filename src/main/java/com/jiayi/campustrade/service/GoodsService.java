@@ -93,7 +93,17 @@ public class GoodsService {
 
     public Goods findById(Integer goodsId) {
 
-        return goodsMapper.findById(goodsId);
+        Goods goods = goodsMapper.findById(goodsId);
+
+        // "已售出"不是独立 status 值：下架(status=0) 且存在关联订单即为售出，
+        // 详情页据此区分展示「已售出 / 已下架」两种真实业务状态
+        if (goods != null) {
+            goods.setSold(goods.getStatus() != null
+                    && goods.getStatus() != 1
+                    && orderMapper.countByGoodsId(goodsId) > 0);
+        }
+
+        return goods;
 
     }
 

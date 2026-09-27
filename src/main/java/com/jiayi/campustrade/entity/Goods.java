@@ -50,4 +50,9 @@ public class Goods {
     // 主图 URL（非持久化字段：列表/详情页 SQL LEFT JOIN goods_image 取主图时填充）
     // 不参与 INSERT/UPDATE，发布商品页改造时由独立的图片接口写入 goods_image 表
     private String imageUrl;
+
+    // 是否已售出（非持久化字段：仅详情接口填充）
+    // goods.status 只有 在售=1 / 下架=0 两种；"已售出" = status=0 且存在关联订单，
+    // 由详情查询时通过 orderMapper.countByGoodsId 判断，列表页为性能不计
+    private Boolean sold;
 }
