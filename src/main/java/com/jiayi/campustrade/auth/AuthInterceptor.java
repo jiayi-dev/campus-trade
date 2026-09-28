@@ -37,6 +37,14 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 1.6 AI 助手基础问答：页面与 Mock 问答对游客公开
+        // 该接口不读写任何用户私有数据（conversationId 当前不落库），
+        // 未来若加入“保存个人会话/查询我的订单”等能力，必须重新收紧为登录态
+        if ("POST".equalsIgnoreCase(request.getMethod())
+                && "/api/ai/chat".equals(request.getRequestURI())) {
+            return true;
+        }
+
         // 2. 获取 Token
         String token = request.getHeader("Authorization");
 
