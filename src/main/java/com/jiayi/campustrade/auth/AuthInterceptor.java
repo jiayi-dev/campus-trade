@@ -29,6 +29,14 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 1.5 游客可访问的公开只读 GET 接口
+        // 商品列表/详情/图片/分类属于公共展示资源，游客无需 Token 即可浏览
+        // 写操作（POST/PUT/DELETE）仍需登录，由下方 Token 校验拦截
+        if ("GET".equalsIgnoreCase(request.getMethod())
+                && isPublicReadPath(request.getRequestURI())) {
+            return true;
+        }
+
         // 2. 获取 Token
         String token = request.getHeader("Authorization");
 
@@ -114,6 +122,44 @@ public class AuthInterceptor implements HandlerInterceptor {
         response.setCharacterEncoding("UTF-8");
         response.setContentType("text/plain;charset=UTF-8");
         response.getWriter().write(message);
+    }
+
+    /**
+     * 游客可访问的公开只读 GET 路径判断
+     *
+     * 放行范围（仅限 GET 方法）：
+     * - /api/goods/page         商品列表（含筛选/搜索/分页查询参数）
+     * - /api/goods/{id}         商品详情（id 为纯数字）
+     * - /api/goods/{id}/images  商品全部图片（id 为纯数字）
+     * - /api/categories         分类列表（详情页显示分类名用）
+     *
+     * 不放行的写操作（POST/PUT/DELETE）继续走 Token 校验：
+     * - POST   /api/goods                发布商品
+     * - PUT    /api/goods                修改商品
+     * - DELETE /api/goods/{id}           删除商品
+     * - POST   /api/goods/{id}/images    关联图片
+     * - POST   /api/goods/{id}/view      浏览量上报
+     * - PUT    /api/goods/{id}/status    上下架
+     */
+    private boolean isPublicReadPath(String uri) {
+        if (uri == null) return false;
+
+        // GET /api/goods/page — 商品列表（含筛选/搜索/分页查询参数）
+        if ("/api/goods/page".equals(uri)) return true;
+
+        // GET /api/categories — 分类列表
+        if ("/api/categories".equals(uri)) return true;
+
+        // GET /api/goods/{id} 和 /api/goods/{id}/images
+        if (uri.startsWith("/api/goods/")) {
+            String remainder = uri.substring("/api/goods/".length());
+            // /api/goods/26 → 商品详情
+            if (remainder.matches("\\d+")) return true;
+            // /api/goods/26/images → 商品全部图片
+            if (remainder.matches("\\d+/images")) return true;
+        }
+
+        return false;
     }
 
     @Override
