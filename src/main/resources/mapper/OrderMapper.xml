@@ -76,6 +76,8 @@
         su.username     AS sellerName,
         o.order_status  AS orderStatus,
         o.create_time   AS createTime,
+        g.campus        AS campus,
+        g.location      AS location,
         gi.image_url    AS imageUrl
         FROM orders o
         LEFT JOIN goods g ON o.goods_id = g.goods_id
