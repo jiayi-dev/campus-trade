@@ -64,8 +64,11 @@ public class OrderController {
         return orderService.findSellerOrders(AuthContext.getUserId());
     }
 
-    // 状态流转：PUT /orders/{id}/status，请求体 { orderStatus: 1 }
-    // 目前只允许 待交易(0) → 已完成(1)，操作者必须是订单参与者
+    // 状态流转：PUT /orders/{id}/status，请求体 { orderStatus: 1 | 2 }
+    //   orderStatus=1：卖家确认已交付（待交易 0 → 待买家确认 1）
+    //   orderStatus=2：买家确认收货（待买家确认 1 → 已完成 2）
+    // 具体“谁能在什么状态下流转到什么状态”由 OrderService 状态机严格校验，
+    // Controller 只负责参数解析与身份透传（userId 取自登录上下文）。
     @PutMapping("/{id}/status")
     public String updateStatus(
             @PathVariable("id") Integer orderId,
@@ -87,15 +90,16 @@ public class OrderController {
             return "订单状态格式不正确";
         }
 
-        // 只开放“确认完成”这一条流转，拒绝任意状态跳转
-        if (targetStatus != 1) {
+        // 只开放两条合法流转的目标状态；其余值（含旧的直接完成语义）拒绝
+        if (targetStatus != 1 && targetStatus != 2) {
             return "不支持的订单状态操作";
         }
 
         try {
-            orderService.finishOrder(orderId, userId);
-            return "订单已完成";
+            return orderService.updateOrderStatus(orderId, userId, targetStatus);
         } catch (RuntimeException e) {
+            // 业务拒绝（越权 / 状态不符 / 跨级跳转）以文本返回，与项目既有接口风格一致，
+            // Service 抛异常意味着数据库状态未被改动，这是真正的服务端拦截
             return e.getMessage();
         }
     }

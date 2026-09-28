@@ -92,13 +92,24 @@ public class OrderService {
     }
 
     /**
-     * 确认订单完成：待交易(0) → 已完成(1)
+     * 订单状态流转（校园面交模型：交付 → 买家确认 → 完成）
      *
-     * 只有订单的买家或卖家本人可以操作，且状态必须是待交易，
-     * 不允许从任意状态跳到任意状态。
+     * 状态定义：
+     *   0 待交易      —— 买家已下单、商品已下架，等待卖家线下交付
+     *   1 待买家确认  —— 卖家已交付，等待买家确认收货
+     *   2 已完成      —— 买家确认收货，交易结束
+     *
+     * 唯一合法的两条流转：
+     *   卖家：0 → 1（确认已交付）
+     *   买家：1 → 2（确认收货）
+     *
+     * 其它一切跳转（0→2、买家 0→1、卖家 1→2、非参与者操作、重复流转等）
+     * 全部在 Service 层拒绝，前端隐藏按钮只是体验层，不能替代这里的校验。
+     *
+     * @return 本次流转成功后的提示文案
      */
     @Transactional(rollbackFor = Exception.class)
-    public void finishOrder(Integer orderId, Integer userId) {
+    public String updateOrderStatus(Integer orderId, Integer userId, Integer targetStatus) {
 
         Orders order = orderMapper.findById(orderId);
 
@@ -106,17 +117,36 @@ public class OrderService {
             throw new RuntimeException("订单不存在");
         }
 
+        Integer currentStatus = order.getOrderStatus();
+
+        if (currentStatus == null) {
+            throw new RuntimeException("订单状态异常，请联系管理员");
+        }
+
         boolean isBuyer = userId.equals(order.getBuyerId());
         boolean isSeller = userId.equals(order.getSellerId());
 
-        if (!isBuyer && !isSeller) {
-            throw new RuntimeException("只能操作与自己相关的订单");
+        // 流转一：卖家确认已交付  0 → 1
+        if (currentStatus == 0 && targetStatus != null && targetStatus == 1) {
+            if (!isSeller) {
+                // 买家或无关用户不能替卖家确认交付
+                throw new RuntimeException("只有卖家可以确认商品已交付");
+            }
+            orderMapper.updateStatus(orderId, 1);
+            return "已确认交付，等待买家确认收货";
         }
 
-        if (order.getOrderStatus() == null || order.getOrderStatus() != 0) {
-            throw new RuntimeException("当前订单状态不允许该操作");
+        // 流转二：买家确认收货  1 → 2
+        if (currentStatus == 1 && targetStatus != null && targetStatus == 2) {
+            if (!isBuyer) {
+                // 卖家或无关用户不能替买家确认收货
+                throw new RuntimeException("只有买家可以确认收货");
+            }
+            orderMapper.updateStatus(orderId, 2);
+            return "交易已完成";
         }
 
-        orderMapper.updateStatus(orderId, 1);
+        // 其余所有组合（0→2、跨级、对已完成订单再操作、目标状态非法等）一律拒绝
+        throw new RuntimeException("当前订单状态不允许该操作");
     }
 }
