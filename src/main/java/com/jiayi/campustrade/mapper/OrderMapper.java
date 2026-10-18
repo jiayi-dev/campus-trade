@@ -34,6 +34,27 @@ public interface OrderMapper {
     // 统计某商品关联的订单数：删除商品前校验、判断商品能否重新上架
     int countByGoodsId(@Param("goodsId") Integer goodsId);
 
+    // 个人中心数据概览：统计我作为买家的订单数
+    // orderStatus 为 null 时统计全部状态，否则按状态过滤（0 待交易 / 2 已完成）
+    int countByBuyerId(
+            @Param("buyerId") Integer buyerId,
+            @Param("orderStatus") Integer orderStatus
+    );
+
+    // 卖家信誉画像：统计我作为卖家的订单数
+    // orderStatus 为 null 时统计全部状态，否则按状态过滤（2 已完成用于信用分计算）
+    int countBySellerId(
+            @Param("sellerId") Integer sellerId,
+            @Param("orderStatus") Integer orderStatus
+    );
+
+    // 统一信用分数据源：统计用户作为买家或卖家参与的已完成订单数（status=2）
+    // 用于 UserService 与 EvaluationService 的 creditScore，避免两处数据源不一致
+    int countCompletedByUserId(@Param("userId") Integer userId);
+
+    // 个人中心交易轨迹：我作为买家的首单/末单时间（一条 SQL 同时取 MIN/MAX，无订单时 value 为 null）
+    Map<String, Object> findOrderTimeRange(@Param("buyerId") Integer buyerId);
+
     // 管理员：全量订单查询（复用 orderDetailColumns JOIN 片段，可选状态筛选）
     List<Map<String, Object>> findAllForAdmin(@Param("orderStatus") Integer orderStatus);
 

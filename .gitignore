@@ -33,3 +33,7 @@ build/
 .vscode/
 
 application-local.yml
+
+# 本地手工备份产物，不入库
+src.zip
+

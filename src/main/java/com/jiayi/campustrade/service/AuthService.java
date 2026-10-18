@@ -3,6 +3,7 @@ package com.jiayi.campustrade.service;
 import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.auth.TokenManager;
 import com.jiayi.campustrade.entity.User;
+import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -85,7 +86,7 @@ public class AuthService {
         User user = userMapper.findById(userId);
 
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new BusinessException("用户不存在");
         }
 
         Map<String, Object> result = new HashMap<>();

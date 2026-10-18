@@ -45,4 +45,11 @@
         </foreach>
     </select>
 
+    <!-- 个人中心数据概览：我的收藏总数 -->
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM favorite
+        WHERE user_id = #{userId}
+    </select>
+
 </mapper>

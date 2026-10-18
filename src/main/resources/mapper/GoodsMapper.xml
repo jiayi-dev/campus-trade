@@ -87,6 +87,10 @@
             <if test="campus != null and campus != ''">
                 AND g.campus = #{campus}
             </if>
+
+            <if test="sellerId != null">
+                AND g.user_id = #{sellerId}
+            </if>
         </where>
 
         <choose>
@@ -148,6 +152,10 @@
 
             <if test="campus != null and campus != ''">
                 AND g.campus = #{campus}
+            </if>
+
+            <if test="sellerId != null">
+                AND g.user_id = #{sellerId}
             </if>
 
         </where>
@@ -523,6 +531,20 @@
 
         </where>
 
+    </select>
+
+    <!-- 个人中心数据概览：我发布的商品总数（含在售与下架） -->
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM goods
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 个人中心交易轨迹：第一次发布商品的时间 -->
+    <select id="findFirstPublishTime" resultType="java.time.LocalDateTime">
+        SELECT MIN(create_time)
+        FROM goods
+        WHERE user_id = #{userId}
     </select>
 
 </mapper>

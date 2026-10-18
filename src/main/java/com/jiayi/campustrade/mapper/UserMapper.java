@@ -47,6 +47,23 @@ public interface UserMapper {
             @Param("status") Integer status
     );
 
+    // =========================
+    // 个人中心（B1）：userId 一律来自 AuthContext，不接受前端传入
+    // =========================
+
+    // 更新个人资料：仅允许 phone / email 两个字段，其他字段不可能通过本语句变更
+    int updateProfile(
+            @Param("userId") Integer userId,
+            @Param("phone") String phone,
+            @Param("email") String email
+    );
+
+    // 修改密码：仅更新 password 字段（Service 层已用 BCrypt 加密）
+    int updatePassword(
+            @Param("userId") Integer userId,
+            @Param("password") String password
+    );
+
     // 卖家申请审核通过：仅更新 role 字段（student → seller）
     int updateRole(
             @Param("userId") Integer userId,

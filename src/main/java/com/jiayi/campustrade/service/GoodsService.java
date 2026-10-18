@@ -2,6 +2,7 @@ package com.jiayi.campustrade.service;
 
 import com.jiayi.campustrade.entity.Goods;
 import com.jiayi.campustrade.entity.User;
+import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.GoodsImageMapper;
 import com.jiayi.campustrade.mapper.GoodsMapper;
 import com.jiayi.campustrade.mapper.OrderMapper;
@@ -44,6 +45,7 @@ public class GoodsService {
             BigDecimal maxPrice,
             Integer conditionLevel,
             String campus,
+            Integer sellerId,
             String sortBy,
             Integer pageNum,
             Integer pageSize) {
@@ -57,6 +59,7 @@ public class GoodsService {
                 maxPrice,
                 conditionLevel,
                 campus,
+                sellerId,
                 sortBy,
                 offset,
                 pageSize
@@ -74,7 +77,8 @@ public class GoodsService {
             BigDecimal minPrice,
             BigDecimal maxPrice,
             Integer conditionLevel,
-            String campus) {
+            String campus,
+            Integer sellerId) {
 
         return goodsMapper.count(
                 goodsName,
@@ -82,7 +86,8 @@ public class GoodsService {
                 minPrice,
                 maxPrice,
                 conditionLevel,
-                campus
+                campus,
+                sellerId
         );
     }
 
@@ -202,7 +207,7 @@ public class GoodsService {
         Integer userId = AuthContext.getUserId();
 
         if (userId == null) {
-            throw new RuntimeException("当前用户未登录");
+            throw new BusinessException("当前用户未登录");
         }
 
         // 发布权限：卖家可发布；管理员保留平台管理兜底；
@@ -214,24 +219,24 @@ public class GoodsService {
                     || "admin".equals(publisher.getRole()));
 
         if (!canPublish) {
-            throw new RuntimeException("成为卖家后即可发布商品，请先完成卖家申请");
+            throw new BusinessException("成为卖家后即可发布商品，请先完成卖家申请");
         }
 
         // 必填项与合法性校验（与 update 对齐，防止绕过前端直接提交脏数据）
         if (goods.getGoodsName() == null || goods.getGoodsName().trim().isEmpty()) {
-            throw new RuntimeException("商品名称不能为空");
+            throw new BusinessException("商品名称不能为空");
         }
 
         if (goods.getCategoryId() == null) {
-            throw new RuntimeException("请选择商品分类");
+            throw new BusinessException("请选择商品分类");
         }
 
         if (goods.getPrice() == null) {
-            throw new RuntimeException("商品价格不能为空");
+            throw new BusinessException("商品价格不能为空");
         }
 
         if (goods.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-            throw new RuntimeException("商品价格不能小于0");
+            throw new BusinessException("商品价格不能小于0");
         }
 
         goods.setUserId(userId);
@@ -253,7 +258,7 @@ public class GoodsService {
     public void update(Goods goods) {
 
         if (goods.getGoodsId() == null) {
-            throw new RuntimeException("缺少商品ID");
+            throw new BusinessException("缺少商品ID");
         }
 
         // 归属校验：不是自己的商品（且非管理员）直接拒绝
@@ -261,19 +266,19 @@ public class GoodsService {
 
         // 编辑内容校验：编辑弹窗为整表提交，必填项缺失会导致动态 SQL 组装出空 SET
         if (goods.getGoodsName() == null || goods.getGoodsName().trim().isEmpty()) {
-            throw new RuntimeException("商品名称不能为空");
+            throw new BusinessException("商品名称不能为空");
         }
 
         if (goods.getCategoryId() == null) {
-            throw new RuntimeException("请选择商品分类");
+            throw new BusinessException("请选择商品分类");
         }
 
         if (goods.getPrice() == null) {
-            throw new RuntimeException("商品价格不能为空");
+            throw new BusinessException("商品价格不能为空");
         }
 
         if (goods.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-            throw new RuntimeException("商品价格不能小于0");
+            throw new BusinessException("商品价格不能小于0");
         }
 
         // 编辑只允许修改名称/分类/描述/价格，不允许通过编辑改动商品状态
@@ -304,7 +309,7 @@ public class GoodsService {
         int orderCount = orderMapper.countByGoodsId(goodsId);
 
         if (orderCount > 0) {
-            throw new RuntimeException("该商品已产生交易记录，不能删除，可将其下架");
+            throw new BusinessException("该商品已产生交易记录，不能删除，可将其下架");
         }
 
         goodsMapper.deleteById(goodsId);
@@ -324,11 +329,11 @@ public class GoodsService {
         Goods goods = checkOwnership(goodsId);
 
         if (targetStatus == null || (targetStatus != 0 && targetStatus != 1)) {
-            throw new RuntimeException("不支持的商品状态");
+            throw new BusinessException("不支持的商品状态");
         }
 
         if (targetStatus.equals(goods.getStatus())) {
-            throw new RuntimeException(targetStatus == 1 ? "商品已在售" : "商品已下架");
+            throw new BusinessException(targetStatus == 1 ? "商品已在售" : "商品已下架");
         }
 
         if (targetStatus == 0) {
@@ -337,7 +342,7 @@ public class GoodsService {
             int rows = goodsMapper.updateStatusIfOnSale(goodsId, 0);
 
             if (rows == 0) {
-                throw new RuntimeException("商品已下架或已被购买");
+                throw new BusinessException("商品已下架或已被购买");
             }
 
             return;
@@ -348,7 +353,7 @@ public class GoodsService {
         int orderCount = orderMapper.countByGoodsId(goodsId);
 
         if (orderCount > 0) {
-            throw new RuntimeException("该商品已产生交易记录，不能重新上架");
+            throw new BusinessException("该商品已产生交易记录，不能重新上架");
         }
 
         goodsMapper.updateStatus(goodsId, 1);
@@ -373,17 +378,17 @@ public class GoodsService {
         Integer userId = AuthContext.getUserId();
 
         if (userId == null) {
-            throw new RuntimeException("当前用户未登录");
+            throw new BusinessException("当前用户未登录");
         }
 
         Goods goods = goodsMapper.findById(goodsId);
 
         if (goods == null) {
-            throw new RuntimeException("商品不存在或已被删除");
+            throw new BusinessException("商品不存在或已被删除");
         }
 
         if (!userId.equals(goods.getUserId()) && !isAdmin(userId)) {
-            throw new RuntimeException("只能操作自己发布的商品");
+            throw new BusinessException("只能操作自己发布的商品");
         }
 
         return goods;
@@ -407,7 +412,7 @@ public class GoodsService {
     public void batchInsert(List<Goods> goodsList) {
 
         if (goodsList == null || goodsList.isEmpty()) {
-            throw new RuntimeException("商品数据不能为空");
+            throw new BusinessException("商品数据不能为空");
         }
 
         for (int i = 0; i < goodsList.size(); i++) {
@@ -421,7 +426,7 @@ public class GoodsService {
             Integer currentUserId = AuthContext.getUserId();
 
             if (currentUserId == null) {
-                throw new RuntimeException("当前用户未登录");
+                throw new BusinessException("当前用户未登录");
             }
 
             goods.setUserId(currentUserId);
@@ -431,7 +436,7 @@ public class GoodsService {
             if (goods.getGoodsName() == null
                     || goods.getGoodsName().trim().isEmpty()) {
 
-                throw new RuntimeException(
+                throw new BusinessException(
                         "第" + rowNum + "行：商品名称不能为空"
                 );
             }
@@ -440,7 +445,7 @@ public class GoodsService {
             // 校验价格
             if (goods.getPrice() == null) {
 
-                throw new RuntimeException(
+                throw new BusinessException(
                         "第" + rowNum + "行：商品价格不能为空"
                 );
             }
@@ -449,7 +454,7 @@ public class GoodsService {
             // 价格不能小于0
             if (goods.getPrice().compareTo(BigDecimal.ZERO) < 0) {
 
-                throw new RuntimeException(
+                throw new BusinessException(
                         "第" + rowNum + "行：商品价格不能小于0"
                 );
             }
@@ -497,7 +502,7 @@ public class GoodsService {
         Integer userId = AuthContext.getUserId();
 
         if (userId == null) {
-            throw new RuntimeException("当前用户未登录");
+            throw new BusinessException("当前用户未登录");
         }
 
         return goodsMapper.findMyGoods(userId);

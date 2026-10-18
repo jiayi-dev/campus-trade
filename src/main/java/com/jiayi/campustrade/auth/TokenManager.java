@@ -86,6 +86,23 @@ public class TokenManager {
     }
 
     /**
+     * 删除某用户的所有 Token（修改密码后使全部登录会话失效）
+     *
+     * 密码变更属于安全事件：无论旧 Token 在哪台设备、是否仍在有效期内，
+     * 都不应继续可用。Token 保存在内存 Map 中，数量有限，遍历删除开销可忽略。
+     */
+    public void removeByUserId(Integer userId) {
+
+        if (userId == null) {
+            return;
+        }
+
+        tokenMap.entrySet().removeIf(
+                entry -> userId.equals(entry.getValue().getUserId())
+        );
+    }
+
+    /**
      * Token 对应的登录会话信息
      */
     private static class SessionInfo {

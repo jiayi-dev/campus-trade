@@ -1,5 +1,6 @@
 package com.jiayi.campustrade.service;
 
+import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.FavoriteMapper;
 import com.jiayi.campustrade.mapper.GoodsMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,7 @@ public class FavoriteService {
     public void batchProcess(List<FavoriteItem> list) {
 
         if (list == null || list.isEmpty()) {
-            throw new RuntimeException("收藏数据不能为空");
+            throw new BusinessException("收藏数据不能为空");
         }
 
         Set<String> set = new HashSet<>();
@@ -35,19 +36,19 @@ public class FavoriteService {
             FavoriteItem item = list.get(i);
 
             if (item.getUserId() == null) {
-                throw new RuntimeException(
+                throw new BusinessException(
                         "第" + (i + 1) + "条收藏的用户ID不能为空");
             }
 
             if (item.getGoodsId() == null) {
-                throw new RuntimeException(
+                throw new BusinessException(
                         "第" + (i + 1) + "条收藏的商品ID不能为空");
             }
 
             String key = item.getUserId() + "_" + item.getGoodsId();
 
             if (!set.add(key)) {
-                throw new RuntimeException(
+                throw new BusinessException(
                         "第" + (i + 1) + "条收藏与前面的数据重复");
             }
 

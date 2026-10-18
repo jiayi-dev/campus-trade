@@ -3,6 +3,7 @@ package com.jiayi.campustrade.service;
 import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.entity.SellerApplication;
 import com.jiayi.campustrade.entity.User;
+import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.SellerApplicationMapper;
 import com.jiayi.campustrade.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,34 +43,34 @@ public class SellerApplicationService {
 
         // ① 原因校验
         if (reason == null || reason.trim().isEmpty()) {
-            throw new RuntimeException("申请原因不能为空");
+            throw new BusinessException("申请原因不能为空");
         }
 
         String trimmedReason = reason.trim();
 
         if (trimmedReason.length() < REASON_MIN) {
-            throw new RuntimeException("申请原因至少填写 " + REASON_MIN + " 个字");
+            throw new BusinessException("申请原因至少填写 " + REASON_MIN + " 个字");
         }
 
         if (trimmedReason.length() > REASON_MAX) {
-            throw new RuntimeException("申请原因不能超过 " + REASON_MAX + " 个字");
+            throw new BusinessException("申请原因不能超过 " + REASON_MAX + " 个字");
         }
 
         // ② 查当前登录用户真实角色
         User user = userMapper.findById(userId);
 
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new BusinessException("用户不存在");
         }
 
         String role = user.getRole();
 
         if ("admin".equals(role)) {
-            throw new RuntimeException("管理员账号无需申请卖家身份");
+            throw new BusinessException("管理员账号无需申请卖家身份");
         }
 
         if ("seller".equals(role)) {
-            throw new RuntimeException("你已经是卖家，无需重复申请");
+            throw new BusinessException("你已经是卖家，无需重复申请");
         }
 
         // ③ 存在 pending 申请时阻止重复提交
@@ -77,7 +78,7 @@ public class SellerApplicationService {
                 sellerApplicationMapper.findPendingByUserId(userId);
 
         if (pending != null) {
-            throw new RuntimeException("你已有一条待审核的申请，请耐心等待管理员审核");
+            throw new BusinessException("你已有一条待审核的申请，请耐心等待管理员审核");
         }
 
         // ④ 插入新申请（status 由数据库默认 0）

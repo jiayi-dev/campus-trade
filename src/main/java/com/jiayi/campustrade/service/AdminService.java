@@ -3,6 +3,7 @@ package com.jiayi.campustrade.service;
 import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.entity.AdminRecord;
 import com.jiayi.campustrade.entity.SellerApplication;
+import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.AdminRecordMapper;
 import com.jiayi.campustrade.mapper.SellerApplicationMapper;
 import com.jiayi.campustrade.mapper.UserMapper;
@@ -116,7 +117,7 @@ public class AdminService {
                 applicationId, 1, adminId, normalizeComment(reviewComment));
 
         if (rows == 0) {
-            throw new RuntimeException("该申请已被审核，不能重复操作");
+            throw new BusinessException("该申请已被审核，不能重复操作");
         }
 
         // 同步提升用户角色
@@ -139,7 +140,7 @@ public class AdminService {
         String comment = normalizeComment(reviewComment);
 
         if (comment.isEmpty()) {
-            throw new RuntimeException("拒绝申请时必须填写审核意见");
+            throw new BusinessException("拒绝申请时必须填写审核意见");
         }
 
         Integer adminId = AuthContext.getUserId();
@@ -150,7 +151,7 @@ public class AdminService {
                 applicationId, 2, adminId, comment);
 
         if (rows == 0) {
-            throw new RuntimeException("该申请已被审核，不能重复操作");
+            throw new BusinessException("该申请已被审核，不能重复操作");
         }
 
         log("审核卖家申请：拒绝，申请ID=" + applicationId
@@ -165,12 +166,12 @@ public class AdminService {
                 sellerApplicationMapper.findById(applicationId);
 
         if (application == null) {
-            throw new RuntimeException("申请不存在");
+            throw new BusinessException("申请不存在");
         }
 
         if (application.getStatus() == null
                 || application.getStatus() != 0) {
-            throw new RuntimeException("该申请已审核，不能重复操作");
+            throw new BusinessException("该申请已审核，不能重复操作");
         }
 
         return application;

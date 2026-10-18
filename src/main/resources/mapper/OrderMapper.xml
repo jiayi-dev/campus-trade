@@ -157,4 +157,47 @@
 
     </select>
 
+    <!--
+        个人中心数据概览：我作为买家的订单数
+        orderStatus 为 null 时统计全部状态（动态条件，一条 SQL 复用三种口径）
+    -->
+    <select id="countByBuyerId" resultType="int">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE buyer_id = #{buyerId}
+        <if test="orderStatus != null">
+            AND order_status = #{orderStatus}
+        </if>
+    </select>
+
+    <!--
+        卖家信誉画像：我作为卖家的订单数
+        orderStatus = 2 用于"已完成交易数"统计（信用分计算依据）
+    -->
+    <select id="countBySellerId" resultType="int">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE seller_id = #{sellerId}
+        <if test="orderStatus != null">
+            AND order_status = #{orderStatus}
+        </if>
+    </select>
+
+    <!-- 统一信用分数据源：用户作为买家或卖家参与的已完成订单数 -->
+    <select id="countCompletedByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE (buyer_id = #{userId} OR seller_id = #{userId})
+          AND order_status = 2
+    </select>
+
+    <!-- 个人中心交易轨迹：首单/末单时间（无订单时整行仍返回，字段值为 null） -->
+    <select id="findOrderTimeRange" resultType="java.util.LinkedHashMap">
+        SELECT
+            MIN(create_time) AS firstOrderTime,
+            MAX(create_time) AS lastOrderTime
+        FROM orders
+        WHERE buyer_id = #{buyerId}
+    </select>
+
 </mapper>

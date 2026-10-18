@@ -45,6 +45,10 @@ public class GoodsController {
             @RequestParam(required = false)
             String campus,
 
+            // 卖家ID：按卖家过滤（卖家主页用，为 null 时不限制）
+            @RequestParam(required = false)
+            Integer sellerId,
+
             // 排序：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序
             //       / hot 热度 / treasure 基于浏览量和收藏量的业务加权排序
             @RequestParam(defaultValue = "latest")
@@ -64,6 +68,7 @@ public class GoodsController {
                 maxPrice,
                 conditionLevel,
                 campus,
+                sellerId,
                 sortBy,
                 pageNum,
                 pageSize
@@ -76,7 +81,8 @@ public class GoodsController {
                 minPrice,
                 maxPrice,
                 conditionLevel,
-                campus
+                campus,
+                sellerId
         );
 
 

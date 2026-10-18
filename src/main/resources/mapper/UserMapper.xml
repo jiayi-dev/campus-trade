@@ -140,5 +140,28 @@
         WHERE user_id = #{userId}
 
     </update>
+    <!--
+        个人中心：更新资料
+        只更新 phone / email 两个字段 —— role / status / password / username
+        在 SQL 层面就不可能被本语句改动，比"接收整个 User 再挑选字段"更安全
+    -->
+    <update id="updateProfile">
+
+        UPDATE user
+        SET phone = #{phone},
+            email = #{email}
+        WHERE user_id = #{userId}
+
+    </update>
+
+
+    <!-- 个人中心：修改密码（Service 层已用 BCrypt 加密后传入） -->
+    <update id="updatePassword">
+
+        UPDATE user
+        SET password = #{password}
+        WHERE user_id = #{userId}
+
+    </update>
 
 </mapper>

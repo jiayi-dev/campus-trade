@@ -2,6 +2,7 @@ package com.jiayi.campustrade.service;
 
 import com.jiayi.campustrade.entity.Goods;
 import com.jiayi.campustrade.entity.Orders;
+import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.GoodsMapper;
 import com.jiayi.campustrade.mapper.OrderMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,17 +42,17 @@ public class OrderService {
         Goods goods = goodsMapper.findById(goodsId);
 
         if (goods == null) {
-            throw new RuntimeException("商品不存在或已被删除");
+            throw new BusinessException("商品不存在或已被删除");
         }
 
         // 2. 商品必须在售（前端按钮禁用不可信，这里是真正的业务闸门）
         if (goods.getStatus() == null || goods.getStatus() != 1) {
-            throw new RuntimeException("商品已下架或已被购买");
+            throw new BusinessException("商品已下架或已被购买");
         }
 
         // 3. 不能购买自己发布的商品
         if (buyerId.equals(goods.getUserId())) {
-            throw new RuntimeException("不能购买自己发布的商品");
+            throw new BusinessException("不能购买自己发布的商品");
         }
 
         // 4. 并发抢占：条件更新只在 status=1 时生效
@@ -60,7 +61,7 @@ public class OrderService {
         int rows = goodsMapper.updateStatusIfOnSale(goodsId, 0);
 
         if (rows == 0) {
-            throw new RuntimeException("手慢了，商品刚刚被其他人买走");
+            throw new BusinessException("手慢了，商品刚刚被其他人买走");
         }
 
         // 5. 抢占成功，创建待交易订单（卖家取商品发布人，不取前端参数）
@@ -114,13 +115,13 @@ public class OrderService {
         Orders order = orderMapper.findById(orderId);
 
         if (order == null) {
-            throw new RuntimeException("订单不存在");
+            throw new BusinessException("订单不存在");
         }
 
         Integer currentStatus = order.getOrderStatus();
 
         if (currentStatus == null) {
-            throw new RuntimeException("订单状态异常，请联系管理员");
+            throw new BusinessException("订单状态异常，请联系管理员");
         }
 
         boolean isBuyer = userId.equals(order.getBuyerId());
@@ -130,7 +131,7 @@ public class OrderService {
         if (currentStatus == 0 && targetStatus != null && targetStatus == 1) {
             if (!isSeller) {
                 // 买家或无关用户不能替卖家确认交付
-                throw new RuntimeException("只有卖家可以确认商品已交付");
+                throw new BusinessException("只有卖家可以确认商品已交付");
             }
             orderMapper.updateStatus(orderId, 1);
             return "已确认交付，等待买家确认收货";
@@ -140,13 +141,13 @@ public class OrderService {
         if (currentStatus == 1 && targetStatus != null && targetStatus == 2) {
             if (!isBuyer) {
                 // 卖家或无关用户不能替买家确认收货
-                throw new RuntimeException("只有买家可以确认收货");
+                throw new BusinessException("只有买家可以确认收货");
             }
             orderMapper.updateStatus(orderId, 2);
             return "交易已完成";
         }
 
         // 其余所有组合（0→2、跨级、对已完成订单再操作、目标状态非法等）一律拒绝
-        throw new RuntimeException("当前订单状态不允许该操作");
+        throw new BusinessException("当前订单状态不允许该操作");
     }
 }

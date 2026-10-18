@@ -12,9 +12,10 @@ import java.util.Map;
 public interface GoodsMapper {
 
 
-    // 动态条件分页查询（JOIN goods_image 取主图 + 成色/校区筛选 + 多种排序）
+    // 动态条件分页查询（JOIN goods_image 取主图 + 成色/校区/卖家筛选 + 多种排序）
     // sortBy 取值：latest 最新发布 / price_asc 价格升序 / price_desc 价格降序
     //              / hot 热度（收藏数+浏览数）/ treasure 基于浏览量和收藏量的业务加权排序
+    // sellerId：按卖家过滤（卖家主页用，为 null 时不限制）
     List<Goods> findPage(
             @Param("goodsName") String goodsName,
             @Param("categoryId") Integer categoryId,
@@ -22,6 +23,7 @@ public interface GoodsMapper {
             @Param("maxPrice") BigDecimal maxPrice,
             @Param("conditionLevel") Integer conditionLevel,
             @Param("campus") String campus,
+            @Param("sellerId") Integer sellerId,
             @Param("sortBy") String sortBy,
             @Param("offset") Integer offset,
             @Param("pageSize") Integer pageSize
@@ -35,7 +37,8 @@ public interface GoodsMapper {
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
             @Param("conditionLevel") Integer conditionLevel,
-            @Param("campus") String campus
+            @Param("campus") String campus,
+            @Param("sellerId") Integer sellerId
     );
 
 
@@ -114,6 +117,12 @@ public interface GoodsMapper {
             @Param("offset") Integer offset,
             @Param("pageSize") Integer pageSize
     );
+
+    // 个人中心数据概览：统计我发布的商品总数（含在售与下架）
+    int countByUserId(@Param("userId") Integer userId);
+
+    // 个人中心交易轨迹：我第一次发布商品的时间（无商品返回 null）
+    java.time.LocalDateTime findFirstPublishTime(@Param("userId") Integer userId);
 
     // 管理员：商品总数
     int countAdmin(
