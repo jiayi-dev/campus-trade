@@ -37,12 +37,27 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 1.6 AI 助手基础问答：页面与 Mock 问答对游客公开
-        // 该接口不读写任何用户私有数据（conversationId 当前不落库），
-        // 未来若加入“保存个人会话/查询我的订单”等能力，必须重新收紧为登录态
-        if ("POST".equalsIgnoreCase(request.getMethod())
-                && "/api/ai/chat".equals(request.getRequestURI())) {
-            return true;
+        // 1.6 AI 助手：页面与基础问答对游客公开
+        // - 未携带 Token：按游客放行（仅可使用公开能力，如商品/卖家信用查询）；
+        // - 携带有效 Token：解析登录身份并写入 AuthContext，
+        //   B9 的 getOrderStatus 据此只查询当前用户本人的订单；
+        // - 携带无效/过期 Token：不阻断游客访问，按游客处理（身份不升级）。
+        // 注意：只做「可选鉴权」，userId 真不真最终仍由 TokenManager 校验。
+        if ("POST".equalsIgnoreCase(request.getMethod())) {
+            String uri = request.getRequestURI();
+            if ("/api/ai/chat".equals(uri) || "/api/ai/chat/stream".equals(uri)) {
+                String aiToken = request.getHeader("Authorization");
+                if (aiToken != null && !aiToken.isEmpty()) {
+                    if (aiToken.startsWith("Bearer ")) {
+                        aiToken = aiToken.substring(7);
+                    }
+                    Integer aiUserId = tokenManager.getUserId(aiToken);
+                    if (aiUserId != null && userMapper.findById(aiUserId) != null) {
+                        AuthContext.setUserId(aiUserId);
+                    }
+                }
+                return true;
+            }
         }
 
         // 2. 获取 Token
@@ -120,6 +135,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     /**
      * 统一处理错误响应
+     * B0 起改为统一 JSON 结构 {code, message, data}：
+     * 前端 request.js 的 pickServerMessage 对 JSON 取 data.message、
+     * 对纯文本直接取字符串，两种格式均兼容，行为平滑升级
      */
     private void writeError(
             HttpServletResponse response,
@@ -128,18 +146,24 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         response.setStatus(status);
         response.setCharacterEncoding("UTF-8");
-        response.setContentType("text/plain;charset=UTF-8");
-        response.getWriter().write(message);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write(
+                "{\"code\":" + status
+                        + ",\"message\":\"" + message
+                        + "\",\"data\":null}"
+        );
     }
 
     /**
      * 游客可访问的公开只读 GET 路径判断
      *
      * 放行范围（仅限 GET 方法）：
-     * - /api/goods/page         商品列表（含筛选/搜索/分页查询参数）
-     * - /api/goods/{id}         商品详情（id 为纯数字）
-     * - /api/goods/{id}/images  商品全部图片（id 为纯数字）
-     * - /api/categories         分类列表（详情页显示分类名用）
+     * - /api/goods/page               商品列表（含筛选/搜索/分页查询参数）
+     * - /api/goods/{id}               商品详情（id 为纯数字）
+     * - /api/goods/{id}/images        商品全部图片（id 为纯数字）
+     * - /api/categories               分类列表（详情页显示分类名用）
+     * - /api/evaluations/seller/{id}  卖家信誉画像（商品详情页游客可看，类似淘宝）
+     * - /api/evaluations/goods/{id}   商品评价列表（商品详情页游客可看）
      *
      * 不放行的写操作（POST/PUT/DELETE）继续走 Token 校验：
      * - POST   /api/goods                发布商品
@@ -148,6 +172,9 @@ public class AuthInterceptor implements HandlerInterceptor {
      * - POST   /api/goods/{id}/images    关联图片
      * - POST   /api/goods/{id}/view      浏览量上报
      * - PUT    /api/goods/{id}/status    上下架
+     * - POST   /api/evaluations          创建评价（买家才能评价）
+     * - POST   /api/evaluations/status   批量查询订单评价状态（涉及订单身份）
+     * - GET    /api/evaluations/order/{id} 查询某订单的评价（含买家昵称，需登录）
      */
     private boolean isPublicReadPath(String uri) {
         if (uri == null) return false;
@@ -165,6 +192,14 @@ public class AuthInterceptor implements HandlerInterceptor {
             if (remainder.matches("\\d+")) return true;
             // /api/goods/26/images → 商品全部图片
             if (remainder.matches("\\d+/images")) return true;
+        }
+
+        // GET /api/evaluations/seller/{id} — 卖家信誉画像（公开，类似淘宝卖家评价页）
+        // GET /api/evaluations/goods/{id}  — 商品评价列表（公开，商品详情页用）
+        if (uri.startsWith("/api/evaluations/")) {
+            String remainder = uri.substring("/api/evaluations/".length());
+            if (remainder.matches("seller/\\d+")) return true;
+            if (remainder.matches("goods/\\d+")) return true;
         }
 
         return false;

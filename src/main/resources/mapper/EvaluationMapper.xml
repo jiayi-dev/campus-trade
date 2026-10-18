@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.EvaluationMapper">
+
+    <!--
+        创建评价：
+        user_id 由 Service 层取自 AuthContext.getUserId()（= 订单买家），
+        不接收前端传入的 buyerId / sellerId。
+        order_id 已有 UNIQUE 约束：并发重复提交时数据库层面拒绝，
+        Service 捕获异常作为兜底（前端二次点击 / 双开标签页同时提交）
+    -->
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.Evaluation"
+            useGeneratedKeys="true"
+            keyProperty="evaluationId"
+            keyColumn="evaluation_id">
+
+        INSERT INTO evaluation
+        (order_id, user_id, content, score, create_time)
+        VALUES
+        (#{orderId}, #{userId}, #{content}, #{score}, NOW())
+
+    </insert>
+
+
+    <!--
+        评价查询通用字段：
+        evaluation JOIN orders 取出 seller_id / goods_id（不冗余存储）
+        evaluation JOIN user 取出买家昵称
+        orders JOIN goods 取出商品名（订单关联的商品可能被删除，LEFT JOIN 兜底）
+        返回完整业务字段，前端直接渲染，不需要二次请求
+    -->
+    <sql id="evaluationColumns">
+
+        SELECT
+        e.evaluation_id  AS evaluationId,
+        e.order_id       AS orderId,
+        e.user_id        AS buyerId,
+        bu.username      AS buyerName,
+        o.seller_id      AS sellerId,
+        o.goods_id       AS goodsId,
+        g.goods_name     AS goodsName,
+        e.score,
+        e.content,
+        e.create_time    AS createTime
+        FROM evaluation e
+        JOIN orders o ON e.order_id = o.order_id
+        LEFT JOIN `user` bu ON e.user_id = bu.user_id
+        LEFT JOIN goods g ON o.goods_id = g.goods_id
+
+    </sql>
+
+
+    <!-- 按订单查询评价（订单详情 / OrderList 已评价查看） -->
+    <select id="findByOrderId"
+            resultType="java.util.LinkedHashMap">
+
+        <include refid="evaluationColumns"/>
+        WHERE e.order_id = #{orderId}
+        LIMIT 1
+
+    </select>
+
+
+    <!--
+        批量查询订单评价状态：
+        OrderList 加载订单后一次性查所有已完成订单的评价状态，
+        避免 N+1（每单单独查一次）
+        返回字段：orderId / evaluationId / score
+        未评价的订单不在结果集中（LEFT JOIN 过滤掉）
+    -->
+    <select id="findStatusByOrderIds"
+            resultType="java.util.LinkedHashMap">
+
+        SELECT
+        e.order_id AS orderId,
+        e.evaluation_id AS evaluationId,
+        e.score
+        FROM evaluation e
+        WHERE e.order_id IN
+        <foreach collection="orderIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+
+    </select>
+
+
+    <!--
+        卖家评价汇总：
+        通过 JOIN orders 关联 seller_id（evaluation 不冗余 seller_id）
+        一次 SQL 取回总数 / 平均分 / 1-5 星分布
+        COALESCE 兜底无评价场景，前端拿到 0 不报 NPE
+    -->
+    <select id="findSummaryBySellerId"
+            resultType="java.util.LinkedHashMap">
+
+        SELECT
+        COUNT(*)                                              AS totalCount,
+        COALESCE(ROUND(AVG(e.score), 1), 0)                   AS avgScore,
+        COALESCE(SUM(CASE WHEN e.score = 5 THEN 1 ELSE 0 END), 0) AS star5,
+        COALESCE(SUM(CASE WHEN e.score = 4 THEN 1 ELSE 0 END), 0) AS star4,
+        COALESCE(SUM(CASE WHEN e.score = 3 THEN 1 ELSE 0 END), 0) AS star3,
+        COALESCE(SUM(CASE WHEN e.score = 2 THEN 1 ELSE 0 END), 0) AS star2,
+        COALESCE(SUM(CASE WHEN e.score = 1 THEN 1 ELSE 0 END), 0) AS star1
+        FROM evaluation e
+        JOIN orders o ON e.order_id = o.order_id
+        WHERE o.seller_id = #{sellerId}
+
+    </select>
+
+
+    <!-- 卖家最近 N 条评价（按评价时间倒序） -->
+    <select id="findRecentBySellerId"
+            resultType="java.util.LinkedHashMap">
+
+        <include refid="evaluationColumns"/>
+        WHERE o.seller_id = #{sellerId}
+        ORDER BY e.create_time DESC, e.evaluation_id DESC
+        LIMIT #{limit}
+
+    </select>
+
+
+    <!-- 按商品查询评价列表（商品详情页展示） -->
+    <select id="findByGoodsId"
+            resultType="java.util.LinkedHashMap">
+
+        <include refid="evaluationColumns"/>
+        WHERE o.goods_id = #{goodsId}
+        ORDER BY e.create_time DESC, e.evaluation_id DESC
+
+    </select>
+
+</mapper>
