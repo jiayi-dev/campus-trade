@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.KbChunkMapper">
+
+    <!-- 新增知识块（返回自增 chunkId） -->
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.KbChunk"
+            useGeneratedKeys="true"
+            keyProperty="chunkId">
+
+        INSERT INTO kb_chunk (
+        doc_id, seq, content, embedding, content_hash, model, create_time, update_time
+        ) VALUES (
+        #{docId}, #{seq}, #{content}, #{embedding}, #{contentHash}, #{model}, #{createTime}, #{updateTime}
+        )
+
+    </insert>
+
+    <!-- 查询某文档下全部知识块（按 seq 升序） -->
+    <select id="findByDocId"
+            resultType="com.jiayi.campustrade.entity.KbChunk">
+
+        SELECT
+        chunk_id,
+        doc_id,
+        seq,
+        content,
+        embedding,
+        content_hash,
+        model,
+        create_time,
+        update_time
+        FROM kb_chunk
+        WHERE doc_id = #{docId}
+        ORDER BY seq ASC
+
+    </select>
+
+    <!-- 删除某文档下全部知识块（重建索引时先删后插） -->
+    <delete id="deleteByDocId">
+
+        DELETE FROM kb_chunk
+        WHERE doc_id = #{docId}
+
+    </delete>
+
+    <!-- 加载全部「启用文档 + 已向量化」知识块（联表带出文档标题，供内存索引构建） -->
+    <select id="findEnabled"
+            resultType="com.jiayi.campustrade.entity.KbChunk">
+
+        SELECT
+        c.chunk_id,
+        c.doc_id,
+        c.seq,
+        c.content,
+        c.embedding,
+        c.content_hash,
+        c.model,
+        c.create_time,
+        c.update_time,
+        d.title AS doc_title
+        FROM kb_chunk c
+        INNER JOIN kb_doc d ON d.doc_id = c.doc_id AND d.enabled = 1
+        WHERE c.embedding IS NOT NULL
+        ORDER BY c.doc_id ASC, c.seq ASC
+
+    </select>
+
+</mapper>

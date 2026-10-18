@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.KbDocMapper">
+
+    <!-- 按标题查询文档（重建索引时按标题 upsert） -->
+    <select id="findByTitle"
+            resultType="com.jiayi.campustrade.entity.KbDoc">
+
+        SELECT
+        doc_id,
+        title,
+        category,
+        source,
+        version,
+        enabled,
+        create_time,
+        update_time
+        FROM kb_doc
+        WHERE title = #{title}
+
+    </select>
+
+    <!-- 新增文档（返回自增 docId） -->
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.KbDoc"
+            useGeneratedKeys="true"
+            keyProperty="docId">
+
+        INSERT INTO kb_doc (
+        title, category, source, version, enabled, create_time, update_time
+        ) VALUES (
+        #{title}, #{category}, #{source}, #{version}, #{enabled}, #{createTime}, #{updateTime}
+        )
+
+    </insert>
+
+    <!-- 按主键更新元信息（重建索引时内容有变则 version+1） -->
+    <update id="updateMeta"
+            parameterType="com.jiayi.campustrade.entity.KbDoc">
+
+        UPDATE kb_doc
+        SET title = #{title},
+        category = #{category},
+        source = #{source},
+        version = #{version},
+        enabled = #{enabled},
+        update_time = #{updateTime}
+        WHERE doc_id = #{docId}
+
+    </update>
+
+    <!-- 查询全部启用文档 -->
+    <select id="findAllEnabled"
+            resultType="com.jiayi.campustrade.entity.KbDoc">
+
+        SELECT
+        doc_id,
+        title,
+        category,
+        source,
+        version,
+        enabled,
+        create_time,
+        update_time
+        FROM kb_doc
+        WHERE enabled = 1
+        ORDER BY doc_id ASC
+
+    </select>
+
+</mapper>

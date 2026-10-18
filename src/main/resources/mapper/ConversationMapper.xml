@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.ConversationMapper">
+
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.Conversation"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO conversation (
+            user_id, title, create_time, update_time
+        ) VALUES (
+            #{userId}, #{title}, #{createTime}, #{updateTime}
+        )
+
+    </insert>
+
+    <select id="findByIdAndUser"
+            resultType="com.jiayi.campustrade.entity.Conversation">
+
+        SELECT
+            id,
+            user_id,
+            title,
+            create_time,
+            update_time
+        FROM conversation
+        WHERE id = #{id} AND user_id = #{userId}
+
+    </select>
+
+    <select id="findByUserId"
+            resultType="com.jiayi.campustrade.entity.Conversation">
+
+        SELECT
+            id,
+            user_id,
+            title,
+            create_time,
+            update_time
+        FROM conversation
+        WHERE user_id = #{userId}
+        ORDER BY update_time DESC
+
+    </select>
+
+    <update id="updateTitle">
+
+        UPDATE conversation
+        SET title = #{title}
+        WHERE id = #{id}
+
+    </update>
+
+    <update id="touchUpdateTime">
+
+        UPDATE conversation
+        SET update_time = NOW()
+        WHERE id = #{id}
+
+    </update>
+
+    <delete id="deleteById">
+
+        DELETE FROM conversation
+        WHERE id = #{id}
+
+    </delete>
+
+</mapper>
