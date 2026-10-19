@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.WantedResponseMapper">
+
+    <!--
+        查询某条求购的全部响应
+        LEFT JOIN `user` 带出响应者昵称；按响应时间倒序
+    -->
+    <select id="findByWantedId"
+            resultType="com.jiayi.campustrade.entity.WantedResponse">
+
+        SELECT
+        r.response_id  AS responseId,
+        r.wanted_id    AS wantedId,
+        r.user_id      AS userId,
+        r.message      AS message,
+        r.create_time  AS createTime,
+        u.username     AS username
+        FROM wanted_response r
+        LEFT JOIN `user` u ON r.user_id = u.user_id
+        WHERE r.wanted_id = #{wantedId}
+        ORDER BY r.create_time DESC, r.response_id DESC
+
+    </select>
+
+
+    <!--
+        新增响应
+        同一人对同一条求购重复响应时：唯一键 uk_wanted_user 冲突，
+        走 UPDATE 覆盖 message（重复响应不新增行，只更新内容）
+    -->
+    <insert id="upsert"
+            parameterType="com.jiayi.campustrade.entity.WantedResponse">
+
+        INSERT INTO wanted_response
+        (wanted_id, user_id, message)
+        VALUES
+        (#{wantedId}, #{userId}, #{message})
+        ON DUPLICATE KEY UPDATE message = VALUES(message)
+
+    </insert>
+
+</mapper>

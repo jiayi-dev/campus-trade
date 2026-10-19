@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.WantedPostMapper">
+
+    <!--
+        1. 动态条件分页查询求购
+        - LEFT JOIN `user` 取发布者昵称（username）
+        - 支持标题模糊 / 分类 / 校区 / 预算上限阈值 / 状态筛选
+        - 支持三种排序：latest / budget_desc / budget_asc
+    -->
+    <select id="findPage"
+            resultType="com.jiayi.campustrade.entity.WantedPost">
+
+        SELECT
+        w.wanted_id       AS wantedId,
+        w.user_id         AS userId,
+        u.username        AS username,
+        w.title           AS title,
+        w.category_id     AS categoryId,
+        w.budget_min      AS budgetMin,
+        w.budget_max      AS budgetMax,
+        w.campus          AS campus,
+        w.description     AS description,
+        w.status          AS status,
+        w.response_count  AS responseCount,
+        w.create_time     AS createTime,
+        w.update_time     AS updateTime
+        FROM wanted_post w
+        LEFT JOIN `user` u ON w.user_id = u.user_id
+
+        <where>
+
+            <if test="keyword != null and keyword != ''">
+                AND w.title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+
+            <if test="categoryId != null">
+                AND w.category_id = #{categoryId}
+            </if>
+
+            <if test="campus != null and campus != ''">
+                AND w.campus = #{campus}
+            </if>
+
+            <!-- 低预算筛选：只看预算上限 <= 该值的求购 -->
+            <if test="budgetMax != null">
+                AND w.budget_max &lt;= #{budgetMax}
+            </if>
+
+            <if test="status != null">
+                AND w.status = #{status}
+            </if>
+
+        </where>
+
+        <choose>
+            <when test="sortBy == 'budget_desc'">
+                ORDER BY w.budget_max DESC, w.wanted_id DESC
+            </when>
+            <when test="sortBy == 'budget_asc'">
+                ORDER BY w.budget_max ASC, w.wanted_id DESC
+            </when>
+            <otherwise>
+                ORDER BY w.create_time DESC, w.wanted_id DESC
+            </otherwise>
+        </choose>
+
+        LIMIT #{offset}, #{pageSize}
+
+    </select>
+
+
+    <!-- 2. 查询符合条件的求购总数（与 findPage 同筛选条件，不 JOIN 提升性能） -->
+    <select id="count"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM wanted_post w
+
+        <where>
+
+            <if test="keyword != null and keyword != ''">
+                AND w.title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+
+            <if test="categoryId != null">
+                AND w.category_id = #{categoryId}
+            </if>
+
+            <if test="campus != null and campus != ''">
+                AND w.campus = #{campus}
+            </if>
+
+            <if test="budgetMax != null">
+                AND w.budget_max &lt;= #{budgetMax}
+            </if>
+
+            <if test="status != null">
+                AND w.status = #{status}
+            </if>
+
+        </where>
+
+    </select>
+
+
+    <!-- 3. 根据ID查询求购详情（含发布者昵称） -->
+    <select id="findById"
+            resultType="com.jiayi.campustrade.entity.WantedPost">
+
+        SELECT
+        w.wanted_id       AS wantedId,
+        w.user_id         AS userId,
+        u.username        AS username,
+        w.title           AS title,
+        w.category_id     AS categoryId,
+        w.budget_min      AS budgetMin,
+        w.budget_max      AS budgetMax,
+        w.campus          AS campus,
+        w.description     AS description,
+        w.status          AS status,
+        w.response_count  AS responseCount,
+        w.create_time     AS createTime,
+        w.update_time     AS updateTime
+        FROM wanted_post w
+        LEFT JOIN `user` u ON w.user_id = u.user_id
+        WHERE w.wanted_id = #{wantedId}
+
+    </select>
+
+
+    <!-- 4. 新增求购（status 固定 1 进行中，response_count 从 0 开始） -->
+    <insert id="insert"
+            useGeneratedKeys="true"
+            keyProperty="wantedId"
+            keyColumn="wanted_id">
+
+        INSERT INTO wanted_post
+        (
+        user_id,
+        title,
+        category_id,
+        budget_min,
+        budget_max,
+        campus,
+        description,
+        status,
+        response_count
+        )
+        VALUES
+        (
+        #{userId},
+        #{title},
+        #{categoryId},
+        #{budgetMin},
+        #{budgetMax},
+        #{campus},
+        #{description},
+        1,
+        0
+        )
+
+    </insert>
+
+
+    <!-- 5. 修改求购（动态 SET；status / response_count 由独立接口与系统维护，不在此改动） -->
+    <update id="update">
+
+        UPDATE wanted_post
+
+        <set>
+
+            <if test="title != null and title != ''">
+                title = #{title},
+            </if>
+
+            <if test="categoryId != null">
+                category_id = #{categoryId},
+            </if>
+
+            <if test="budgetMin != null">
+                budget_min = #{budgetMin},
+            </if>
+
+            <if test="budgetMax != null">
+                budget_max = #{budgetMax},
+            </if>
+
+            <if test="campus != null">
+                campus = #{campus},
+            </if>
+
+            <if test="description != null">
+                description = #{description},
+            </if>
+
+        </set>
+
+        WHERE wanted_id = #{wantedId}
+
+    </update>
+
+
+    <!-- 6. 求购状态流转（关闭），归属与状态合法性由 Service 层校验 -->
+    <update id="updateStatus">
+
+        UPDATE wanted_post
+        SET status = #{status}
+        WHERE wanted_id = #{wantedId}
+
+    </update>
+
+
+    <!-- 7. 按 wanted_response 的真实行数刷新冗余字段 response_count，保证计数不做假 -->
+    <update id="refreshResponseCount">
+
+        UPDATE wanted_post
+        SET response_count = (
+            SELECT COUNT(*) FROM wanted_response WHERE wanted_id = #{wantedId}
+        )
+        WHERE wanted_id = #{wantedId}
+
+    </update>
+
+</mapper>
