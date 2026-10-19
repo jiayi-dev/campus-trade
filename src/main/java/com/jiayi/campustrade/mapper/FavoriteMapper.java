@@ -3,6 +3,7 @@ package com.jiayi.campustrade.mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 public interface FavoriteMapper {
 
@@ -35,4 +36,7 @@ public interface FavoriteMapper {
             @Param("userId") Integer userId,
             @Param("goodsIds") List<Integer> goodsIds
     );
+
+    // 我的收藏商品（含商品展示字段与主图），按收藏时间倒序
+    List<Map<String, Object>> findMyFavoriteGoods(@Param("userId") Integer userId);
 }

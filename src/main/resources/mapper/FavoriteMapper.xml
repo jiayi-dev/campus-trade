@@ -52,4 +52,31 @@
         WHERE user_id = #{userId}
     </select>
 
+    <!-- 我的收藏商品列表：JOIN goods 带出展示字段，JOIN goods_image 取主图（主图优先链：
+         is_primary DESC → sort_order ASC → image_id ASC），按收藏时间倒序 -->
+    <select id="findMyFavoriteGoods" resultType="java.util.Map">
+        SELECT
+            g.goods_id       AS goodsId,
+            g.user_id        AS userId,
+            g.category_id    AS categoryId,
+            g.goods_name     AS goodsName,
+            g.price          AS price,
+            g.status         AS status,
+            g.view_count     AS viewCount,
+            g.favorite_count AS favoriteCount,
+            g.condition_level AS conditionLevel,
+            g.campus         AS campus,
+            g.location       AS location,
+            f.create_time    AS favoriteTime,
+            gi.image_url     AS imageUrl
+        FROM favorite f
+        JOIN goods g ON g.goods_id = f.goods_id
+        LEFT JOIN goods_image gi ON gi.image_id = (
+            SELECT image_id FROM goods_image WHERE goods_id = f.goods_id
+            ORDER BY is_primary DESC, sort_order ASC, image_id ASC LIMIT 1
+        )
+        WHERE f.user_id = #{userId}
+        ORDER BY f.create_time DESC, g.goods_id DESC
+    </select>
+
 </mapper>

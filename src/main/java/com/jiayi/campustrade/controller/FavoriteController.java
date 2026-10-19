@@ -103,4 +103,22 @@ public class FavoriteController {
 
         return "已取消收藏";
     }
+
+    // 我的收藏商品列表（含商品展示字段与主图）：GET /favorite/my
+    @GetMapping("/my")
+    public List<Map<String, Object>> my() {
+        return favoriteService.findMyFavorites();
+    }
+
+    // 批量取消收藏：DELETE /favorite/batch，请求体为商品ID数组 [1,2,3]
+    // 静态段 batch 的匹配优先级高于动态段 {goodsId}，不会与 DELETE /favorite/{goodsId} 冲突
+    @DeleteMapping("/batch")
+    public String batchCancel(@RequestBody List<Integer> goodsIds) {
+        try {
+            int removed = favoriteService.cancelFavorites(goodsIds);
+            return "已取消收藏 " + removed + " 件商品";
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+    }
 }

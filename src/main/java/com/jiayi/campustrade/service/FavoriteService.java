@@ -1,5 +1,6 @@
 package com.jiayi.campustrade.service;
 
+import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.FavoriteMapper;
 import com.jiayi.campustrade.mapper.GoodsMapper;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -102,6 +104,58 @@ public class FavoriteService {
     // 批量查询当前用户已收藏的商品ID（列表页回显收藏状态，避免 N+1 请求）
     public List<Integer> findFavoriteGoodsIds(Integer userId, List<Integer> goodsIds) {
         return favoriteMapper.findFavoriteGoodsIds(userId, goodsIds);
+    }
+
+    /**
+     * 我的收藏商品列表（含商品展示字段与主图，按收藏时间倒序）
+     * 当前用户从登录上下文获取，未登录直接抛业务异常
+     */
+    public List<Map<String, Object>> findMyFavorites() {
+
+        Integer userId = AuthContext.getUserId();
+
+        if (userId == null) {
+            throw new BusinessException("请先登录");
+        }
+
+        return favoriteMapper.findMyFavoriteGoods(userId);
+    }
+
+    /**
+     * 批量取消收藏
+     * 只为「确实存在于我的收藏里」的商品执行取消，避免对未收藏的商品执行时把
+     * goods.favorite_count 减错；复用 cancelFavorite 保证计数同步与事务一致性。
+     * @return 成功取消的商品数量
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int cancelFavorites(List<Integer> goodsIds) {
+
+        if (goodsIds == null || goodsIds.isEmpty()) {
+            throw new BusinessException("请选择要取消收藏的商品");
+        }
+
+        Integer userId = AuthContext.getUserId();
+
+        if (userId == null) {
+            throw new BusinessException("请先登录");
+        }
+
+        int removed = 0;
+
+        for (Integer goodsId : goodsIds) {
+
+            if (goodsId == null) {
+                continue;
+            }
+
+            // 先确认是否真的收藏过，避免未收藏时 favorite_count 误减
+            if (favoriteMapper.findByUserIdAndGoodsId(userId, goodsId) > 0) {
+                cancelFavorite(userId, goodsId);
+                removed++;
+            }
+        }
+
+        return removed;
     }
 
     public static class FavoriteItem {
