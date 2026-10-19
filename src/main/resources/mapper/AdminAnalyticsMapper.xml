@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.AdminAnalyticsMapper">
+
+    <!--
+        1. 平台总量指标：用子查询一次性返回多个统计值
+        数据全部来自真实业务表，不做任何硬编码。
+    -->
+    <select id="countTotals"
+            resultType="java.util.Map">
+
+        SELECT
+        (SELECT COUNT(*) FROM `user`)                            AS userCount,
+        (SELECT COUNT(*) FROM `user` WHERE role = 'student')     AS studentCount,
+        (SELECT COUNT(*) FROM `user` WHERE role = 'seller')      AS sellerCount,
+        (SELECT COUNT(*) FROM `user` WHERE role = 'admin')       AS adminCount,
+        (SELECT COUNT(*) FROM `user` WHERE status = 1)           AS activeUserCount,
+        (SELECT COUNT(*) FROM goods)                             AS goodsCount,
+        (SELECT COUNT(*) FROM goods WHERE status = 1)            AS onSaleCount,
+        (SELECT COUNT(*) FROM goods WHERE status = 0)            AS offSaleCount,
+        (SELECT COUNT(*) FROM orders)                            AS orderCount,
+        (SELECT COUNT(*) FROM orders WHERE order_status = 0)     AS orderPendingCount,
+        (SELECT COUNT(*) FROM orders WHERE order_status = 1)     AS orderConfirmingCount,
+        (SELECT COUNT(*) FROM orders WHERE order_status = 2)     AS orderDoneCount,
+        (SELECT COUNT(*) FROM favorite)                          AS favoriteCount,
+        (SELECT COUNT(*) FROM evaluation)                        AS evaluationCount,
+        (SELECT COUNT(*) FROM category)                          AS categoryCount
+
+    </select>
+
+
+    <!-- 2. 商品分类分布：分类维度 LEFT JOIN 商品，无商品的分类计为 0 -->
+    <select id="categoryDistribution"
+            resultType="java.util.Map">
+
+        SELECT
+        c.category_id   AS categoryId,
+        c.category_name AS categoryName,
+        COUNT(g.goods_id) AS goodsCount
+        FROM category c
+        LEFT JOIN goods g ON g.category_id = c.category_id
+        GROUP BY c.category_id, c.category_name
+        ORDER BY goodsCount DESC, c.category_id ASC
+
+    </select>
+
+
+    <!-- 3. 订单状态分布（0待交易 / 1待买家确认 / 2已完成） -->
+    <select id="orderStatusDistribution"
+            resultType="java.util.Map">
+
+        SELECT
+        o.order_status AS status,
+        COUNT(*)       AS count
+        FROM orders o
+        GROUP BY o.order_status
+        ORDER BY o.order_status ASC
+
+    </select>
+
+
+    <!-- 4. 近 N 天新增商品（按日期分组；缺日期的补零由 Service 完成） -->
+    <select id="goodsTrend"
+            resultType="java.util.Map">
+
+        SELECT
+        DATE_FORMAT(g.create_time, '%Y-%m-%d') AS date,
+        COUNT(*)                               AS count
+        FROM goods g
+        WHERE g.create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY date
+        ORDER BY date ASC
+
+    </select>
+
+
+    <!-- 5. 近 N 天新增订单 -->
+    <select id="orderTrend"
+            resultType="java.util.Map">
+
+        SELECT
+        DATE_FORMAT(o.create_time, '%Y-%m-%d') AS date,
+        COUNT(*)                               AS count
+        FROM orders o
+        WHERE o.create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY date
+        ORDER BY date ASC
+
+    </select>
+
+
+    <!-- 6. 近 N 天新增用户 -->
+    <select id="userTrend"
+            resultType="java.util.Map">
+
+        SELECT
+        DATE_FORMAT(u.create_time, '%Y-%m-%d') AS date,
+        COUNT(*)                               AS count
+        FROM `user` u
+        WHERE u.create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY date
+        ORDER BY date ASC
+
+    </select>
+
+
+    <!-- 7. 在售商品的校区分布（空校区归为「未标注」） -->
+    <select id="campusDistribution"
+            resultType="java.util.Map">
+
+        SELECT
+        IFNULL(NULLIF(g.campus, ''), '未标注') AS campus,
+        COUNT(*)                               AS count
+        FROM goods g
+        WHERE g.status = 1
+        GROUP BY IFNULL(NULLIF(g.campus, ''), '未标注')
+        ORDER BY count DESC
+
+    </select>
+
+
+    <!-- 8. 最近 N 条订单（JOIN 商品名 / 买家昵称 / 卖家昵称） -->
+    <select id="recentOrders"
+            resultType="java.util.Map">
+
+        SELECT
+        o.order_id     AS orderId,
+        o.order_status AS orderStatus,
+        o.create_time  AS createTime,
+        g.goods_name   AS goodsName,
+        g.price        AS price,
+        bu.username    AS buyerName,
+        se.username    AS sellerName
+        FROM orders o
+        LEFT JOIN goods g   ON g.goods_id = o.goods_id
+        LEFT JOIN `user` bu ON bu.user_id = o.buyer_id
+        LEFT JOIN `user` se ON se.user_id = o.seller_id
+        ORDER BY o.order_id DESC
+        LIMIT #{limit}
+
+    </select>
+
+
+    <!-- 9. 最近 N 条发布商品（JOIN 卖家昵称） -->
+    <select id="recentGoods"
+            resultType="java.util.Map">
+
+        SELECT
+        g.goods_id    AS goodsId,
+        g.goods_name  AS goodsName,
+        g.price       AS price,
+        g.status      AS status,
+        g.create_time AS createTime,
+        u.username    AS sellerName
+        FROM goods g
+        LEFT JOIN `user` u ON u.user_id = g.user_id
+        ORDER BY g.goods_id DESC
+        LIMIT #{limit}
+
+    </select>
+
+
+    <!-- 10. 异常数据：价格 <= 0 的商品数（数据质量提示） -->
+    <select id="countZeroPriceGoods"
+            resultType="int">
+
+        SELECT COUNT(*) FROM goods WHERE price &lt;= 0
+
+    </select>
+
+
+    <!-- 11. 异常数据：被禁用的用户数（status = 0） -->
+    <select id="countDisabledUsers"
+            resultType="int">
+
+        SELECT COUNT(*) FROM `user` WHERE status = 0
+
+    </select>
+
+
+    <!-- 12. 异常数据：已下架商品数（status = 0，含已售出与下架） -->
+    <select id="countOffSaleGoods"
+            resultType="int">
+
+        SELECT COUNT(*) FROM goods WHERE status = 0
+
+    </select>
+
+</mapper>
