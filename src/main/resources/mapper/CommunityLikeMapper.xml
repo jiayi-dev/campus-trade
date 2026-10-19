@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.CommunityLikeMapper">
+
+    <!-- 查询某用户对某动态是否已点赞（返回行数，>0 表示已点赞） -->
+    <select id="countByPostAndUser"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM community_like
+        WHERE post_id = #{postId}
+        AND user_id = #{userId}
+
+    </select>
+
+
+    <!-- 新增点赞（唯一键 uk_post_user 保证一人一赞，重复点赞不会产生新行） -->
+    <insert id="insert">
+
+        INSERT INTO community_like
+        (post_id, user_id)
+        VALUES
+        (#{postId}, #{userId})
+
+    </insert>
+
+
+    <!-- 取消点赞 -->
+    <delete id="delete">
+
+        DELETE FROM community_like
+        WHERE post_id = #{postId}
+        AND user_id = #{userId}
+
+    </delete>
+
+</mapper>

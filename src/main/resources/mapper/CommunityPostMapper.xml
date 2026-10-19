@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.CommunityPostMapper">
+
+    <!--
+        1. 动态条件分页查询动态
+        - LEFT JOIN `user` 取作者昵称（authorName）
+        - LEFT JOIN community_like 判定「当前登录用户是否已点赞」(liked)
+        - LEFT JOIN goods 取关联商品名（goodsName）
+        - 支持标题模糊 / 主题筛选
+        - 支持两种排序：latest 最新 / hot 最热
+    -->
+    <select id="findPage"
+            resultType="com.jiayi.campustrade.entity.CommunityPost">
+
+        SELECT
+        p.post_id       AS postId,
+        p.user_id       AS userId,
+        u.username      AS authorName,
+        p.title         AS title,
+        p.topic         AS topic,
+        p.content       AS content,
+        p.image_url     AS imageUrl,
+        p.goods_id      AS goodsId,
+        g.goods_name    AS goodsName,
+        p.like_count    AS likeCount,
+        p.comment_count AS commentCount,
+        p.view_count    AS viewCount,
+        p.create_time   AS createTime,
+        p.update_time   AS updateTime,
+        (cl.like_id IS NOT NULL) AS liked
+        FROM community_post p
+        LEFT JOIN `user` u ON p.user_id = u.user_id
+        LEFT JOIN goods g ON p.goods_id = g.goods_id
+        LEFT JOIN community_like cl
+            ON cl.post_id = p.post_id AND cl.user_id = #{currentUserId}
+
+        <where>
+
+            <if test="keyword != null and keyword != ''">
+                AND p.title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+
+            <if test="topic != null and topic != ''">
+                AND p.topic = #{topic}
+            </if>
+
+        </where>
+
+        <choose>
+            <when test="sortBy == 'hot'">
+                ORDER BY p.like_count DESC, p.view_count DESC, p.post_id DESC
+            </when>
+            <otherwise>
+                ORDER BY p.create_time DESC, p.post_id DESC
+            </otherwise>
+        </choose>
+
+        LIMIT #{offset}, #{pageSize}
+
+    </select>
+
+
+    <!-- 2. 查询符合条件的动态总数（与 findPage 同筛选条件，不 JOIN 提升性能） -->
+    <select id="count"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM community_post p
+
+        <where>
+
+            <if test="keyword != null and keyword != ''">
+                AND p.title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+
+            <if test="topic != null and topic != ''">
+                AND p.topic = #{topic}
+            </if>
+
+        </where>
+
+    </select>
+
+
+    <!-- 3. 根据ID查询动态详情（含作者昵称 / 点赞状态 / 关联商品名） -->
+    <select id="findById"
+            resultType="com.jiayi.campustrade.entity.CommunityPost">
+
+        SELECT
+        p.post_id       AS postId,
+        p.user_id       AS userId,
+        u.username      AS authorName,
+        p.title         AS title,
+        p.topic         AS topic,
+        p.content       AS content,
+        p.image_url     AS imageUrl,
+        p.goods_id      AS goodsId,
+        g.goods_name    AS goodsName,
+        p.like_count    AS likeCount,
+        p.comment_count AS commentCount,
+        p.view_count    AS viewCount,
+        p.create_time   AS createTime,
+        p.update_time   AS updateTime,
+        (cl.like_id IS NOT NULL) AS liked
+        FROM community_post p
+        LEFT JOIN `user` u ON p.user_id = u.user_id
+        LEFT JOIN goods g ON p.goods_id = g.goods_id
+        LEFT JOIN community_like cl
+            ON cl.post_id = p.post_id AND cl.user_id = #{currentUserId}
+        WHERE p.post_id = #{postId}
+
+    </select>
+
+
+    <!-- 4. 查询某用户发布的全部动态（我的动态，按发布时间倒序） -->
+    <select id="findByUserId"
+            resultType="com.jiayi.campustrade.entity.CommunityPost">
+
+        SELECT
+        p.post_id       AS postId,
+        p.user_id       AS userId,
+        u.username      AS authorName,
+        p.title         AS title,
+        p.topic         AS topic,
+        p.content       AS content,
+        p.image_url     AS imageUrl,
+        p.goods_id      AS goodsId,
+        g.goods_name    AS goodsName,
+        p.like_count    AS likeCount,
+        p.comment_count AS commentCount,
+        p.view_count    AS viewCount,
+        p.create_time   AS createTime,
+        p.update_time   AS updateTime,
+        (cl.like_id IS NOT NULL) AS liked
+        FROM community_post p
+        LEFT JOIN `user` u ON p.user_id = u.user_id
+        LEFT JOIN goods g ON p.goods_id = g.goods_id
+        LEFT JOIN community_like cl
+            ON cl.post_id = p.post_id AND cl.user_id = #{currentUserId}
+        WHERE p.user_id = #{userId}
+        ORDER BY p.create_time DESC, p.post_id DESC
+
+    </select>
+
+
+    <!-- 5. 新增动态（like_count / comment_count / view_count 从 0 开始，由系统维护） -->
+    <insert id="insert"
+            useGeneratedKeys="true"
+            keyProperty="postId"
+            keyColumn="post_id">
+
+        INSERT INTO community_post
+        (
+        user_id,
+        title,
+        topic,
+        content,
+        image_url,
+        goods_id,
+        like_count,
+        comment_count,
+        view_count
+        )
+        VALUES
+        (
+        #{userId},
+        #{title},
+        #{topic},
+        #{content},
+        #{imageUrl},
+        #{goodsId},
+        0,
+        0,
+        0
+        )
+
+    </insert>
+
+
+    <!-- 6. 编辑动态（仅可编辑字段；计数与浏览量由系统维护，不在此改动） -->
+    <update id="update">
+
+        UPDATE community_post
+        SET
+        title     = #{title},
+        topic     = #{topic},
+        content   = #{content},
+        image_url = #{imageUrl},
+        goods_id  = #{goodsId}
+        WHERE post_id = #{postId}
+
+    </update>
+
+
+    <!-- 7. 删除动态（评论 / 点赞由外键 ON DELETE CASCADE 级联清理） -->
+    <delete id="deleteById">
+
+        DELETE FROM community_post
+        WHERE post_id = #{postId}
+
+    </delete>
+
+
+    <!-- 8. 浏览量原子 +1 -->
+    <update id="incrementViewCount">
+
+        UPDATE community_post
+        SET view_count = view_count + 1
+        WHERE post_id = #{postId}
+
+    </update>
+
+
+    <!-- 9. 按 community_like 真实行数刷新 like_count，保证计数不做假 -->
+    <update id="refreshLikeCount">
+
+        UPDATE community_post
+        SET like_count = (
+            SELECT COUNT(*) FROM community_like WHERE post_id = #{postId}
+        )
+        WHERE post_id = #{postId}
+
+    </update>
+
+
+    <!-- 10. 按 community_comment 真实行数刷新 comment_count，保证计数不做假 -->
+    <update id="refreshCommentCount">
+
+        UPDATE community_post
+        SET comment_count = (
+            SELECT COUNT(*) FROM community_comment WHERE post_id = #{postId}
+        )
+        WHERE post_id = #{postId}
+
+    </update>
+
+</mapper>

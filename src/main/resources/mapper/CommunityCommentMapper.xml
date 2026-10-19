@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.CommunityCommentMapper">
+
+    <!--
+        查询某条动态的全部评论
+        LEFT JOIN `user` 带出评论者昵称；按评论时间正序（从早到晚，符合对话阅读习惯）
+    -->
+    <select id="findByPostId"
+            resultType="com.jiayi.campustrade.entity.CommunityComment">
+
+        SELECT
+        c.comment_id  AS commentId,
+        c.post_id     AS postId,
+        c.user_id     AS userId,
+        c.content     AS content,
+        c.create_time AS createTime,
+        u.username    AS authorName
+        FROM community_comment c
+        LEFT JOIN `user` u ON c.user_id = u.user_id
+        WHERE c.post_id = #{postId}
+        ORDER BY c.create_time ASC, c.comment_id ASC
+
+    </select>
+
+
+    <!-- 新增评论 -->
+    <insert id="insert"
+            useGeneratedKeys="true"
+            keyProperty="commentId"
+            keyColumn="comment_id">
+
+        INSERT INTO community_comment
+        (post_id, user_id, content)
+        VALUES
+        (#{postId}, #{userId}, #{content})
+
+    </insert>
+
+</mapper>
