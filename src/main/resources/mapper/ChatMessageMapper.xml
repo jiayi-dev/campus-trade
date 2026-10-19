@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.ChatMessageMapper">
+
+    <!--
+        会话列表：一条 SQL 拿齐每个会话的展示信息，避免前端循环请求造成 N+1。
+        内层子查询 t：按 session_key 分组，取该会话最后一条 chat_id + 发给我的未读数；
+        外层 JOIN chat_message 取最后一条消息内容/时间，再 JOIN 对方 user、商品、商品主图。
+    -->
+    <select id="findSessions"
+            resultType="java.util.Map">
+
+        SELECT
+        t.session_key AS sessionKey,
+        m.chat_id     AS chatId,
+        m.from_user_id AS fromUserId,
+        m.to_user_id  AS toUserId,
+        m.goods_id    AS goodsId,
+        g.goods_name  AS goodsName,
+        g.price       AS goodsPrice,
+        m.content     AS lastContent,
+        m.create_time AS lastTime,
+        t.unread      AS unread,
+        CASE WHEN m.from_user_id = #{userId} THEN m.to_user_id ELSE m.from_user_id END AS otherUserId,
+        u.username    AS otherUserName,
+        gi.image_url  AS imageUrl
+        FROM (
+        SELECT session_key,
+        MAX(chat_id) AS last_id,
+        SUM(CASE WHEN to_user_id = #{userId} AND is_read = 0 THEN 1 ELSE 0 END) AS unread
+        FROM chat_message
+        WHERE from_user_id = #{userId} OR to_user_id = #{userId}
+        GROUP BY session_key
+        ) t
+        JOIN chat_message m ON m.chat_id = t.last_id
+        LEFT JOIN `user` u ON u.user_id = (CASE WHEN m.from_user_id = #{userId} THEN m.to_user_id ELSE m.from_user_id END)
+        LEFT JOIN goods g ON g.goods_id = m.goods_id
+        LEFT JOIN goods_image gi ON gi.image_id = (
+        SELECT image_id FROM goods_image WHERE goods_id = m.goods_id
+        ORDER BY is_primary DESC, sort_order ASC, image_id ASC LIMIT 1
+        )
+        ORDER BY m.chat_id DESC
+
+    </select>
+
+
+    <!-- 某会话的全部消息（时间正序） -->
+    <select id="findBySession"
+            resultType="java.util.Map">
+
+        SELECT
+        chat_id      AS chatId,
+        from_user_id AS fromUserId,
+        to_user_id   AS toUserId,
+        goods_id     AS goodsId,
+        content      AS content,
+        is_read      AS isRead,
+        create_time  AS createTime
+        FROM chat_message
+        WHERE session_key = #{sessionKey}
+        ORDER BY chat_id ASC
+
+    </select>
+
+
+    <!-- 发送消息：is_read 传 0，时间取数据库当前时间，自增主键回填 chatId -->
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.ChatMessage"
+            useGeneratedKeys="true"
+            keyProperty="chatId"
+            keyColumn="chat_id">
+
+        INSERT INTO chat_message
+        (session_key, from_user_id, to_user_id, goods_id, content, is_read, create_time)
+        VALUES
+        (#{sessionKey}, #{fromUserId}, #{toUserId}, #{goodsId}, #{content}, #{isRead}, NOW())
+
+    </insert>
+
+
+    <!-- 会话已读：只把「发给我的消息」标记为已读，不影响我发出的消息 -->
+    <update id="markRead">
+
+        UPDATE chat_message
+        SET is_read = 1
+        WHERE session_key = #{sessionKey}
+        AND to_user_id = #{userId}
+        AND is_read = 0
+
+    </update>
+
+
+    <!-- 当前用户的未读总数 -->
+    <select id="countUnread"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM chat_message
+        WHERE to_user_id = #{userId}
+        AND is_read = 0
+
+    </select>
+
+</mapper>
