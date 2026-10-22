@@ -7,8 +7,8 @@
 <mapper namespace="com.jiayi.campustrade.mapper.WantedResponseMapper">
 
     <!--
-        查询某条求购的全部响应
-        LEFT JOIN `user` 带出响应者昵称；按响应时间倒序
+        查询某条求购的全部报价
+        LEFT JOIN `user` 带出报价人昵称；按报价时间倒序
     -->
     <select id="findByWantedId"
             resultType="com.jiayi.campustrade.entity.WantedResponse">
@@ -18,6 +18,8 @@
         r.wanted_id    AS wantedId,
         r.user_id      AS userId,
         r.message      AS message,
+        r.price        AS price,
+        r.status       AS status,
         r.create_time  AS createTime,
         u.username     AS username
         FROM wanted_response r
@@ -28,20 +30,54 @@
     </select>
 
 
+    <!-- 单条报价详情（选定前校验该报价确实属于这条求购） -->
+    <select id="findById"
+            resultType="com.jiayi.campustrade.entity.WantedResponse">
+
+        SELECT
+        response_id  AS responseId,
+        wanted_id    AS wantedId,
+        user_id      AS userId,
+        message      AS message,
+        price        AS price,
+        status       AS status,
+        create_time  AS createTime
+        FROM wanted_response
+        WHERE response_id = #{responseId}
+
+    </select>
+
+
     <!--
-        新增响应
-        同一人对同一条求购重复响应时：唯一键 uk_wanted_user 冲突，
-        走 UPDATE 覆盖 message（重复响应不新增行，只更新内容）
+        新增报价
+        已移除 uk_wanted_user 唯一键：同一人可以对同一条求购提交多条报价，
+        每条报价独立成行、独立状态，需求方择优选定。
     -->
-    <insert id="upsert"
-            parameterType="com.jiayi.campustrade.entity.WantedResponse">
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.WantedResponse"
+            useGeneratedKeys="true"
+            keyProperty="responseId"
+            keyColumn="response_id">
 
         INSERT INTO wanted_response
-        (wanted_id, user_id, message)
+        (wanted_id, user_id, message, price, status)
         VALUES
-        (#{wantedId}, #{userId}, #{message})
-        ON DUPLICATE KEY UPDATE message = VALUES(message)
+        (#{wantedId}, #{userId}, #{message}, #{price}, 0)
 
     </insert>
+
+
+    <!--
+        选定报价
+        目标报价 → 1 已选定；同一求购下其他报价 → 2 未入选
+        已在 Service 层校验发布者归属与求购状态
+    -->
+    <update id="accept">
+
+        UPDATE wanted_response
+        SET status = CASE WHEN response_id = #{responseId} THEN 1 ELSE 2 END
+        WHERE wanted_id = #{wantedId}
+
+    </update>
 
 </mapper>

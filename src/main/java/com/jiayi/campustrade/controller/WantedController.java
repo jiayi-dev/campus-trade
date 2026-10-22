@@ -177,7 +177,8 @@ public class WantedController {
 
 
     // =========================
-    // 提交响应：POST /wanted/{id}/responses，请求体 { message }
+    // 提交报价：POST /wanted/{id}/responses，请求体 { message, price }
+    // 同一人可多次报价，每次独立成行
     // =========================
 
     @PostMapping("/{id}/responses")
@@ -189,11 +190,47 @@ public class WantedController {
 
         String message = messageObj == null ? null : String.valueOf(messageObj);
 
+        BigDecimal price = null;
+
+        Object priceObj = body.get("price");
+
+        if (priceObj != null && !"".equals(String.valueOf(priceObj))) {
+            try {
+                price = new BigDecimal(String.valueOf(priceObj));
+            } catch (NumberFormatException e) {
+                return "报价金额格式不正确";
+            }
+        }
+
         try {
 
-            wantedService.respond(wantedId, message);
+            wantedService.respond(wantedId, message, price);
 
-            return "响应已提交";
+            return "报价已提交";
+
+        } catch (RuntimeException e) {
+
+            return e.getMessage();
+
+        }
+    }
+
+
+    // =========================
+    // 选定报价（仅发布者本人）：PUT /wanted/{id}/responses/{responseId}/accept
+    // 选定后该求购关闭，其余报价标记为未入选
+    // =========================
+
+    @PutMapping("/{id}/responses/{responseId}/accept")
+    public String acceptQuote(
+            @PathVariable("id") Integer wantedId,
+            @PathVariable("responseId") Integer responseId) {
+
+        try {
+
+            wantedService.acceptQuote(wantedId, responseId);
+
+            return "已选定该报价，求购已关闭";
 
         } catch (RuntimeException e) {
 

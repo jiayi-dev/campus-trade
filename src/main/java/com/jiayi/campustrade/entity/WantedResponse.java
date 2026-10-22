@@ -2,6 +2,7 @@ package com.jiayi.campustrade.entity;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -18,6 +19,12 @@ public class WantedResponse {
 
     // 响应内容
     private String message;
+
+    // 报价金额（null 表示面议）
+    private BigDecimal price;
+
+    // 报价状态：0 待选 / 1 已选定 / 2 未入选
+    private Integer status;
 
     // 响应时间
     private LocalDateTime createTime;

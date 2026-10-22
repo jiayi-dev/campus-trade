@@ -2,15 +2,23 @@ package com.jiayi.campustrade.mapper;
 
 import com.jiayi.campustrade.entity.WantedResponse;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
 public interface WantedResponseMapper {
 
-    // 查询某条求购的全部响应（JOIN user 带出响应者昵称，按响应时间倒序）
+    // 查询某条求购的全部报价（JOIN user 带出响应者昵称，按时间倒序）
     List<WantedResponse> findByWantedId(Integer wantedId);
 
-    // 新增响应；同一人对同一条求购重复响应时走 UPDATE（唯一键 uk_wanted_user）
-    int upsert(WantedResponse response);
+    // 查询单条报价（选定报价时校验归属）
+    WantedResponse findById(Integer responseId);
+
+    // 新增报价：每次都 INSERT，同一人可对同一求购多次报价
+    int insert(WantedResponse response);
+
+    // 选定报价：目标报价置 1，同求购下其余报价置 2
+    int accept(@Param("wantedId") Integer wantedId,
+               @Param("responseId") Integer responseId);
 }
