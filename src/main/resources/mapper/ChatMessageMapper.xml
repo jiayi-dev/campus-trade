@@ -23,6 +23,7 @@
         g.goods_name  AS goodsName,
         g.price       AS goodsPrice,
         m.content     AS lastContent,
+        m.message_type AS lastType,
         m.create_time AS lastTime,
         t.unread      AS unread,
         CASE WHEN m.from_user_id = #{userId} THEN m.to_user_id ELSE m.from_user_id END AS otherUserId,
@@ -53,16 +54,29 @@
             resultType="java.util.Map">
 
         SELECT
-        chat_id      AS chatId,
-        from_user_id AS fromUserId,
-        to_user_id   AS toUserId,
-        goods_id     AS goodsId,
-        content      AS content,
-        is_read      AS isRead,
-        create_time  AS createTime
-        FROM chat_message
-        WHERE session_key = #{sessionKey}
-        ORDER BY chat_id ASC
+        m.chat_id       AS chatId,
+        m.from_user_id  AS fromUserId,
+        m.to_user_id    AS toUserId,
+        m.goods_id      AS goodsId,
+        m.content       AS content,
+        m.message_type  AS messageType,
+        m.related_id    AS relatedId,
+        m.is_read       AS isRead,
+        m.create_time   AS createTime,
+        o.order_status  AS orderStatus,
+        og.goods_name   AS orderGoodsName,
+        og.price        AS orderPrice,
+        o.create_time   AS orderCreateTime,
+        bu.username     AS orderBuyerName,
+        su.username     AS orderSellerName
+        FROM chat_message m
+        LEFT JOIN orders o
+            ON m.message_type = 'order' AND o.order_id = m.related_id
+        LEFT JOIN goods og ON o.goods_id = og.goods_id
+        LEFT JOIN `user` bu ON o.buyer_id = bu.user_id
+        LEFT JOIN `user` su ON o.seller_id = su.user_id
+        WHERE m.session_key = #{sessionKey}
+        ORDER BY m.chat_id ASC
 
     </select>
 
@@ -75,9 +89,11 @@
             keyColumn="chat_id">
 
         INSERT INTO chat_message
-        (session_key, from_user_id, to_user_id, goods_id, content, is_read, create_time)
+        (session_key, from_user_id, to_user_id, goods_id, content,
+         message_type, related_id, is_read, create_time)
         VALUES
-        (#{sessionKey}, #{fromUserId}, #{toUserId}, #{goodsId}, #{content}, #{isRead}, NOW())
+        (#{sessionKey}, #{fromUserId}, #{toUserId}, #{goodsId}, #{content},
+         #{messageType}, #{relatedId}, #{isRead}, NOW())
 
     </insert>
 

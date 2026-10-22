@@ -26,8 +26,14 @@ public class ChatMessage {
     // 关联商品ID（可空：不针对具体商品的沟通）
     private Integer goodsId;
 
-    // 消息正文
+    // 消息正文（图片消息存放图片 URL，便于会话列表做文本预览）
     private String content;
+
+    // 消息类型：text 文本 / image 图片 / order 订单卡片
+    private String messageType;
+
+    // 关联ID：image 消息为图片 URL 文本，order 消息为订单ID
+    private Integer relatedId;
 
     // 接收者是否已读：0 未读 / 1 已读
     private Integer isRead;

@@ -40,17 +40,25 @@ public class ChatController {
     }
 
 
-    // 发送消息：POST /chat/send，请求体 { toUserId, goodsId, content }
+    // 发送消息：POST /chat/send
+    // 请求体 { toUserId, goodsId, content, messageType?, relatedId? }
+    //   messageType：text 文本（默认）/ image 图片 / order 订单卡片
+    //   relatedId  ：order 消息必填，为订单ID
     // 业务失败以文本返回，与项目现有 Controller 风格一致
     @PostMapping("/send")
     public String send(@RequestBody Map<String, Object> body) {
 
         Object toUserIdObj = body.get("toUserId");
         Object goodsIdObj = body.get("goodsId");
+        Object relatedIdObj = body.get("relatedId");
 
         String content = body.get("content") == null
                 ? null
                 : String.valueOf(body.get("content"));
+
+        String messageType = body.get("messageType") == null
+                ? null
+                : String.valueOf(body.get("messageType"));
 
         if (toUserIdObj == null) {
             return "缺少接收人ID";
@@ -58,6 +66,7 @@ public class ChatController {
 
         Integer toUserId;
         Integer goodsId = null;
+        Integer relatedId = null;
 
         try {
             toUserId = Integer.valueOf(String.valueOf(toUserIdObj));
@@ -65,12 +74,16 @@ public class ChatController {
             if (goodsIdObj != null && !"".equals(String.valueOf(goodsIdObj))) {
                 goodsId = Integer.valueOf(String.valueOf(goodsIdObj));
             }
+
+            if (relatedIdObj != null && !"".equals(String.valueOf(relatedIdObj))) {
+                relatedId = Integer.valueOf(String.valueOf(relatedIdObj));
+            }
         } catch (NumberFormatException e) {
             return "参数格式不正确";
         }
 
         try {
-            return chatService.send(toUserId, goodsId, content);
+            return chatService.send(toUserId, goodsId, content, messageType, relatedId);
         } catch (RuntimeException e) {
             return e.getMessage();
         }

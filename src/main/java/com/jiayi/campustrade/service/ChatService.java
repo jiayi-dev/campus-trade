@@ -2,6 +2,7 @@ package com.jiayi.campustrade.service;
 
 import com.jiayi.campustrade.auth.AuthContext;
 import com.jiayi.campustrade.entity.ChatMessage;
+import com.jiayi.campustrade.entity.Orders;
 import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.ChatMessageMapper;
 import com.jiayi.campustrade.mapper.OrderMapper;
@@ -127,7 +128,14 @@ public class ChatService {
     // 发送消息
     // =========================
 
-    public String send(Integer toUserId, Integer goodsId, String content) {
+    /**
+     * 发送消息
+     *
+     * @param messageType text 文本 / image 图片 / order 订单卡片；为空按 text 处理
+     * @param relatedId   order 消息必填，必须是当前用户作为买家或卖家参与的订单
+     */
+    public String send(Integer toUserId, Integer goodsId, String content,
+                       String messageType, Integer relatedId) {
 
         Integer userId = AuthContext.getUserId();
 
@@ -143,11 +151,61 @@ public class ChatService {
             throw new BusinessException("不能给自己发消息");
         }
 
-        if (content == null || content.trim().isEmpty()) {
+        String type = (messageType == null || messageType.trim().isEmpty())
+                ? "text"
+                : messageType.trim();
+
+        if (!"text".equals(type) && !"image".equals(type) && !"order".equals(type)) {
+            throw new BusinessException("不支持的消息类型");
+        }
+
+        String text = content == null ? "" : content.trim();
+
+        if ("text".equals(type) && text.isEmpty()) {
             throw new BusinessException("消息内容不能为空");
         }
 
-        String text = content.trim();
+        if ("image".equals(type)) {
+            // 只接受本地上传接口返回的地址或 http(s) 图片地址，
+            // 避免把任意字符串塞进 <img src>
+            boolean allowed = text.startsWith("/api/files/")
+                    || text.startsWith("http://")
+                    || text.startsWith("https://");
+
+            if (!allowed) {
+                throw new BusinessException("图片地址不合法");
+            }
+
+            relatedId = null;
+        }
+
+        if ("order".equals(type)) {
+            if (relatedId == null) {
+                throw new BusinessException("缺少关联订单ID");
+            }
+
+            Orders order = orderMapper.findById(relatedId);
+
+            if (order == null) {
+                throw new BusinessException("订单不存在");
+            }
+
+            boolean isBuyer = userId.equals(order.getBuyerId());
+            boolean isSeller = userId.equals(order.getSellerId());
+
+            if (!isBuyer && !isSeller) {
+                throw new BusinessException("只能发送与自己相关的订单");
+            }
+
+            Integer counterparty = isBuyer ? order.getSellerId() : order.getBuyerId();
+
+            if (!toUserId.equals(counterparty)) {
+                throw new BusinessException("订单双方与当前会话不一致");
+            }
+
+            // 订单卡片正文只做会话列表预览，真实展示走 relatedId + 订单联查
+            text = "订单 #" + relatedId;
+        }
 
         if (text.length() > 500) {
             throw new BusinessException("消息内容不能超过 500 字");
@@ -158,6 +216,8 @@ public class ChatService {
         message.setToUserId(toUserId);
         message.setGoodsId(goodsId);
         message.setContent(text);
+        message.setMessageType(type);
+        message.setRelatedId(relatedId);
         message.setIsRead(0);
         message.setSessionKey(sessionKeyOf(userId, toUserId, goodsId));
 
