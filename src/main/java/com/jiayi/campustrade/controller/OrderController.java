@@ -103,4 +103,25 @@ public class OrderController {
             return e.getMessage();
         }
     }
+
+    // 取消订单：PUT /orders/{id}/cancel，请求体 { reason }
+    // 仅买家/卖家本人、且订单处于 0 待交易或 1 待买家确认 时可取消；
+    // 取消后订单状态置 3，商品自动恢复在售。
+    @PutMapping("/{id}/cancel")
+    public String cancel(
+            @PathVariable("id") Integer orderId,
+            @RequestBody Map<String, Object> body) {
+
+        Integer userId = AuthContext.getUserId();
+
+        Object reasonObj = body.get("reason");
+
+        String reason = reasonObj == null ? null : String.valueOf(reasonObj);
+
+        try {
+            return orderService.cancelOrder(orderId, userId, reason);
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+    }
 }

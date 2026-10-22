@@ -150,4 +150,54 @@ public class OrderService {
         // 其余所有组合（0→2、跨级、对已完成订单再操作、目标状态非法等）一律拒绝
         throw new BusinessException("当前订单状态不允许该操作");
     }
+
+
+    /**
+     * 取消订单（买卖双方都可发起，仅限尚未完成的交易）
+     *
+     * 状态约束：只有 0 待交易 / 1 待买家确认 可取消，2 已完成 / 3 已取消 一律拒绝，
+     * 避免已完成交易被单方面抹掉记录。
+     * 商品处理：取消后若商品仍存在且处于下架态，自动重新上架，别人可以继续购买。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String cancelOrder(Integer orderId, Integer userId, String reason) {
+
+        Orders order = orderMapper.findById(orderId);
+
+        if (order == null) {
+            throw new BusinessException("订单不存在");
+        }
+
+        boolean isBuyer = userId.equals(order.getBuyerId());
+        boolean isSeller = userId.equals(order.getSellerId());
+
+        if (!isBuyer && !isSeller) {
+            throw new BusinessException("无权取消他人的订单");
+        }
+
+        Integer currentStatus = order.getOrderStatus();
+
+        if (currentStatus == null || (currentStatus != 0 && currentStatus != 1)) {
+            throw new BusinessException("当前订单状态不允许取消");
+        }
+
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new BusinessException("请填写取消原因");
+        }
+
+        if (reason.trim().length() > 200) {
+            throw new BusinessException("取消原因不能超过200字");
+        }
+
+        orderMapper.cancel(orderId, reason.trim(), userId);
+
+        // 商品回归在售：取消后别人仍可下单，不让商品永久卡在下架态
+        Goods goods = goodsMapper.findById(order.getGoodsId());
+
+        if (goods != null && goods.getStatus() != null && goods.getStatus() == 0) {
+            goodsMapper.updateStatus(order.getGoodsId(), 1);
+        }
+
+        return "订单已取消，商品已重新上架";
+    }
 }

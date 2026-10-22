@@ -48,6 +48,9 @@
         buyer_id,
         seller_id,
         order_status,
+        cancel_reason,
+        cancel_by,
+        cancel_time,
         create_time
         FROM orders
         WHERE order_id = #{orderId}
@@ -75,6 +78,8 @@
         o.seller_id     AS sellerId,
         su.username     AS sellerName,
         o.order_status  AS orderStatus,
+        o.cancel_reason AS cancelReason,
+        o.cancel_time   AS cancelTime,
         o.create_time   AS createTime,
         g.campus        AS campus,
         g.location      AS location,
@@ -132,6 +137,19 @@
 
         UPDATE orders
         SET order_status = #{orderStatus}
+        WHERE order_id = #{orderId}
+
+    </update>
+
+
+    <!-- 取消订单：状态置 3，记录原因 / 操作人 / 时间 -->
+    <update id="cancel">
+
+        UPDATE orders
+        SET order_status = 3,
+            cancel_reason = #{cancelReason},
+            cancel_by = #{cancelBy},
+            cancel_time = NOW()
         WHERE order_id = #{orderId}
 
     </update>

@@ -31,6 +31,13 @@ public interface OrderMapper {
             @Param("orderStatus") Integer orderStatus
     );
 
+    // 取消订单：状态置 3，并记录原因、操作人、时间
+    int cancel(
+            @Param("orderId") Integer orderId,
+            @Param("cancelReason") String cancelReason,
+            @Param("cancelBy") Integer cancelBy
+    );
+
     // 统计某商品关联的订单数：删除商品前校验、判断商品能否重新上架
     int countByGoodsId(@Param("goodsId") Integer goodsId);
 

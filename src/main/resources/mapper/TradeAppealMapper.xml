@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jiayi.campustrade.mapper.TradeAppealMapper">
+
+    <!-- 申诉列表/详情共用的展示字段：一次联查带出订单、商品、买卖双方、处理人 -->
+    <sql id="appealColumns">
+
+        SELECT
+        a.appeal_id      AS appealId,
+        a.order_id       AS orderId,
+        a.user_id        AS userId,
+        a.reason         AS reason,
+        a.detail         AS detail,
+        a.status         AS status,
+        a.handle_by      AS handleBy,
+        a.handle_comment AS handleComment,
+        a.create_time    AS createTime,
+        a.handle_time    AS handleTime,
+        u.username       AS username,
+        o.order_status   AS orderStatus,
+        g.goods_name     AS goodsName,
+        bu.username      AS buyerName,
+        su.username      AS sellerName,
+        hu.username      AS handlerName
+        FROM trade_appeal a
+        LEFT JOIN `user` u  ON a.user_id = u.user_id
+        LEFT JOIN orders o  ON a.order_id = o.order_id
+        LEFT JOIN goods g   ON o.goods_id = g.goods_id
+        LEFT JOIN `user` bu ON o.buyer_id = bu.user_id
+        LEFT JOIN `user` su ON o.seller_id = su.user_id
+        LEFT JOIN `user` hu ON a.handle_by = hu.user_id
+
+    </sql>
+
+    <insert id="insert"
+            parameterType="com.jiayi.campustrade.entity.TradeAppeal"
+            useGeneratedKeys="true"
+            keyProperty="appealId"
+            keyColumn="appeal_id">
+
+        INSERT INTO trade_appeal
+        (order_id, user_id, reason, detail, status)
+        VALUES
+        (#{orderId}, #{userId}, #{reason}, #{detail}, 0)
+
+    </insert>
+
+    <select id="findById"
+            resultType="com.jiayi.campustrade.entity.TradeAppeal">
+
+        SELECT
+        appeal_id AS appealId,
+        order_id  AS orderId,
+        user_id   AS userId,
+        reason    AS reason,
+        detail    AS detail,
+        status    AS status,
+        handle_by AS handleBy,
+        handle_comment AS handleComment,
+        create_time AS createTime,
+        handle_time AS handleTime
+        FROM trade_appeal
+        WHERE appeal_id = #{appealId}
+
+    </select>
+
+    <select id="findByUserId"
+            resultType="com.jiayi.campustrade.entity.TradeAppeal">
+
+        <include refid="appealColumns"/>
+        WHERE a.user_id = #{userId}
+        ORDER BY a.create_time DESC, a.appeal_id DESC
+
+    </select>
+
+    <select id="findAll"
+            resultType="com.jiayi.campustrade.entity.TradeAppeal">
+
+        <include refid="appealColumns"/>
+
+        <where>
+            <if test="status != null">
+                AND a.status = #{status}
+            </if>
+        </where>
+
+        ORDER BY a.status ASC, a.create_time DESC, a.appeal_id DESC
+
+    </select>
+
+    <select id="countPending"
+            resultType="int">
+
+        SELECT COUNT(*)
+        FROM trade_appeal
+        WHERE order_id = #{orderId}
+          AND user_id = #{userId}
+          AND status = 0
+
+    </select>
+
+    <update id="handle">
+
+        UPDATE trade_appeal
+        SET status = #{status},
+            handle_by = #{handleBy},
+            handle_comment = #{handleComment},
+            handle_time = NOW()
+        WHERE appeal_id = #{appealId}
+
+    </update>
+
+</mapper>
