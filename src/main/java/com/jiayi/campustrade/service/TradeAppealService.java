@@ -8,6 +8,8 @@ import com.jiayi.campustrade.exception.BusinessException;
 import com.jiayi.campustrade.mapper.OrderMapper;
 import com.jiayi.campustrade.mapper.TradeAppealMapper;
 import com.jiayi.campustrade.mapper.UserMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,13 +28,23 @@ public class TradeAppealService {
     @Autowired
     private UserMapper userMapper;
 
+    private final ObjectMapper om = new ObjectMapper();
+
+    // 证据数量上限（业务约束）
+    private static final int MAX_EVIDENCES = 5;
+
 
     /**
      * 提交交易申诉：只有该订单的买家或卖家可以申诉
-     * 同一人对同一订单只允许一条待处理申诉，避免刷单式重复提交。
+     *
+     * evidences：证据图片 URL 数组（可空）。规则：
+     *   1) 最多 5 张；
+     *   2) 每张 URL 必须以 /api/files/（本地上传）或 http(s):// 开头；
+     *   3) 不允许重复；
+     *   4) 转 JSON 存库，查询时前端再 parse。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Integer create(Integer orderId, String reason, String detail) {
+    public Integer create(Integer orderId, String reason, String detail, List<String> evidences) {
 
         Integer userId = AuthContext.getUserId();
 
@@ -69,6 +81,36 @@ public class TradeAppealService {
             throw new BusinessException("申诉说明不能超过500字");
         }
 
+        if (evidences != null && !evidences.isEmpty()) {
+
+            if (evidences.size() > MAX_EVIDENCES) {
+                throw new BusinessException("证据图片最多 " + MAX_EVIDENCES + " 张");
+            }
+
+            for (String url : evidences) {
+
+                if (url == null || url.trim().isEmpty()) {
+                    throw new BusinessException("存在空的证据图片地址");
+                }
+
+                boolean ok = url.startsWith("/api/files/")
+                        || url.startsWith("http://")
+                        || url.startsWith("https://");
+
+                if (!ok) {
+                    throw new BusinessException("非法的证据图片地址（必须是 /api/files/ 或 http(s)://）");
+                }
+
+            }
+
+            // 去重：相同 URL 只留一张
+            List<String> dedup = evidences.stream().distinct().toList();
+            if (dedup.size() != evidences.size()) {
+                throw new BusinessException("证据图片地址存在重复");
+            }
+
+        }
+
         if (tradeAppealMapper.countPending(orderId, userId) > 0) {
             throw new BusinessException("该订单已有待处理的申诉，请等待管理员处理");
         }
@@ -78,6 +120,16 @@ public class TradeAppealService {
         appeal.setUserId(userId);
         appeal.setReason(reason.trim());
         appeal.setDetail(detail == null ? null : detail.trim());
+
+        if (evidences != null && !evidences.isEmpty()) {
+            try {
+                appeal.setEvidences(om.writeValueAsString(evidences));
+            } catch (JsonProcessingException e) {
+                throw new BusinessException("证据序列化失败");
+            }
+        } else {
+            appeal.setEvidences(null);
+        }
 
         tradeAppealMapper.insert(appeal);
 

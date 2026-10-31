@@ -45,6 +45,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         // 注意：只做「可选鉴权」，userId 真不真最终仍由 TokenManager 校验。
         if ("POST".equalsIgnoreCase(request.getMethod())) {
             String uri = request.getRequestURI();
+
+            // POST /api/ai/chat / /api/ai/chat/stream — AI 助手可选鉴权（已鉴权则升级身份）
             if ("/api/ai/chat".equals(uri) || "/api/ai/chat/stream".equals(uri)) {
                 String aiToken = request.getHeader("Authorization");
                 if (aiToken != null && !aiToken.isEmpty()) {
@@ -57,6 +59,26 @@ public class AuthInterceptor implements HandlerInterceptor {
                     }
                 }
                 return true;
+            }
+
+            // POST /api/goods/{id}/view — 浏览量上报：游客也应计数
+            // 有有效 Token 时注入 userId，后端 increaseView 据此判断"本人浏览不加"；
+            // 无 Token 时 AuthContext.getUserId() 返回 null，游客同样 +1
+            if (uri.startsWith("/api/goods/")) {
+                String remainder = uri.substring("/api/goods/".length());
+                if (remainder.matches("\\d+/view")) {
+                    String viewToken = request.getHeader("Authorization");
+                    if (viewToken != null && !viewToken.isEmpty()) {
+                        if (viewToken.startsWith("Bearer ")) {
+                            viewToken = viewToken.substring(7);
+                        }
+                        Integer viewUserId = tokenManager.getUserId(viewToken);
+                        if (viewUserId != null && userMapper.findById(viewUserId) != null) {
+                            AuthContext.setUserId(viewUserId);
+                        }
+                    }
+                    return true;
+                }
             }
         }
 

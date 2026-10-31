@@ -64,6 +64,19 @@ public interface UserMapper {
             @Param("password") String password
     );
 
+    // =========================
+    // 头像：独立查询 / 更新，避免影响其它 SELECT *
+    // =========================
+
+    // 查询当前用户头像 URL（可能为 null）
+    String findAvatar(@Param("userId") Integer userId);
+
+    // 更新头像 URL
+    int updateAvatar(
+            @Param("userId") Integer userId,
+            @Param("avatar") String avatar
+    );
+
     // 卖家申请审核通过：仅更新 role 字段（student → seller）
     int updateRole(
             @Param("userId") Integer userId,

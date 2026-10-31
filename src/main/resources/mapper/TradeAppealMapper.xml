@@ -15,6 +15,7 @@
         a.user_id        AS userId,
         a.reason         AS reason,
         a.detail         AS detail,
+        a.evidences      AS evidences,
         a.status         AS status,
         a.handle_by      AS handleBy,
         a.handle_comment AS handleComment,
@@ -43,9 +44,9 @@
             keyColumn="appeal_id">
 
         INSERT INTO trade_appeal
-        (order_id, user_id, reason, detail, status)
+        (order_id, user_id, reason, detail, evidences, status)
         VALUES
-        (#{orderId}, #{userId}, #{reason}, #{detail}, 0)
+        (#{orderId}, #{userId}, #{reason}, #{detail}, #{evidences}, 0)
 
     </insert>
 
@@ -58,6 +59,7 @@
         user_id   AS userId,
         reason    AS reason,
         detail    AS detail,
+        evidences AS evidences,
         status    AS status,
         handle_by AS handleBy,
         handle_comment AS handleComment,

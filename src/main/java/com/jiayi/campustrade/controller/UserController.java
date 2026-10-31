@@ -95,4 +95,39 @@ public class UserController {
     public Map<String, Object> overview() {
         return userService.getOverview();
     }
+
+    // =========================
+    // 头像（登录后可用，userId 来自 AuthContext）
+    // =========================
+
+    /**
+     * 当前用户头像
+     * GET /api/user/avatar  → { "avatar": "/api/files/goods/xxx.jpg" } 或 { "avatar": null }
+     */
+    @GetMapping("/avatar")
+    public Map<String, Object> avatar() {
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("avatar", userService.getAvatar());
+
+        return result;
+    }
+
+    /**
+     * 更新头像
+     * PUT /api/user/avatar  body: { "avatar": "/api/files/goods/xxx.jpg" }
+     */
+    @PutMapping("/avatar")
+    public Map<String, Object> updateAvatar(@RequestBody Map<String, String> body) {
+
+        String avatar = userService.updateAvatar(
+                body == null ? null : body.get("avatar")
+        );
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("avatar", avatar);
+        result.put("message", "头像已更新");
+
+        return result;
+    }
 }

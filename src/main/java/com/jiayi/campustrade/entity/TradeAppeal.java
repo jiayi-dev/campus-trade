@@ -20,6 +20,9 @@ public class TradeAppeal {
     // 申诉说明
     private String detail;
 
+    // 证据图片URL数组，JSON 字符串，如 '["/api/files/xxx.jpg", "https://.../yyy.jpg"]'
+    private String evidences;
+
     // 0 待处理 / 1 已受理 / 2 已驳回
     private Integer status;
 

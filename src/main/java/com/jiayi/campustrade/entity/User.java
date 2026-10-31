@@ -22,6 +22,9 @@ public class User {
 
     private String email;
 
+    // 头像：服务端相对 URL（如 /api/files/goods/xxx.jpg），为空时前端用昵称首字兜底
+    private String avatar;
+
     private String role;
 
     private Integer status;

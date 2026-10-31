@@ -164,4 +164,24 @@
 
     </update>
 
+
+    <!-- 头像：只查 avatar 一列 -->
+    <select id="findAvatar" resultType="java.lang.String">
+
+        SELECT avatar
+        FROM `user`
+        WHERE user_id = #{userId}
+
+    </select>
+
+
+    <!-- 头像：只更新 avatar 一列，不允许顺带修改其它字段 -->
+    <update id="updateAvatar">
+
+        UPDATE `user`
+        SET avatar = #{avatar}
+        WHERE user_id = #{userId}
+
+    </update>
+
 </mapper>

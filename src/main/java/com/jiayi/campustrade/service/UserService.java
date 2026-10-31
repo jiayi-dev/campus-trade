@@ -177,12 +177,65 @@ public class UserService {
         profile.put("role", user.getRole());
         profile.put("phone", user.getPhone());
         profile.put("email", user.getEmail());
+        profile.put("avatar", user.getAvatar());
         profile.put("status", user.getStatus());
         profile.put("createTime", user.getCreateTime());
         // 卖家认证档案：null = 从未申请；否则含 status/reason/审核意见等全部字段
         profile.put("sellerApplication", application);
 
         return profile;
+    }
+
+    /**
+     * 当前登录用户头像（可能为 null）
+     */
+    public String getAvatar() {
+
+        Integer userId = AuthContext.getUserId();
+
+        if (userId == null) {
+            throw new BusinessException("当前用户未登录");
+        }
+
+        return userMapper.findAvatar(userId);
+    }
+
+    /**
+     * 更新当前登录用户头像
+     *
+     * 只接受 /api/files/ 或 http(s):// 开头的地址，避免把 javascript:、
+     * data: 等危险协议写入数据库后被前端 <img src> 直接执行。
+     * 头像 URL 必须来自上传接口，或外部合法图床。
+     */
+    public String updateAvatar(String avatar) {
+
+        Integer userId = AuthContext.getUserId();
+
+        if (userId == null) {
+            throw new BusinessException("当前用户未登录");
+        }
+
+        if (avatar == null || avatar.trim().isEmpty()) {
+            throw new BusinessException("请先上传头像图片");
+        }
+
+        String url = avatar.trim();
+
+        if (url.length() > 255) {
+            throw new BusinessException("头像地址过长");
+        }
+
+        boolean ok = url.startsWith("/api/files/")
+                || url.startsWith("http://")
+                || url.startsWith("https://");
+
+        if (!ok) {
+            throw new BusinessException("非法的头像地址");
+        }
+
+        userMapper.updateAvatar(userId, url);
+
+        return url;
     }
 
     /**
