@@ -120,11 +120,9 @@ llm:
 
 ### 4. 启动
 
-当前 `pom.xml` 中 `spring-boot-maven-plugin` 配置了 `<skip>true</skip>`，因此：
-
 - IDEA 中直接运行主类 `com.jiayi.campustrade.CampusTradeApplication`；
 - `mvn compile` 可用于编译检查；
-- 如需可执行 fat jar，必须先移除 `skip`（详见部署方案第 10 节）。
+- `pom.xml` 已配置 `<skip>false</skip>`，`mvn package` 会生成可执行 fat jar（Docker 构建依赖此产物，见下文「Docker 部署」）。
 
 服务地址：`http://localhost:8080/api`
 
@@ -147,11 +145,98 @@ llm:
 
 ## Docker 部署
 
-当前仓库**尚未包含** Dockerfile / docker-compose / Nginx 配置，部署前存在已知阻塞项（`pom.xml` 的 `skip`、`application.yml` 写死 `local` profile、上传目录默认值）。完整的前置条件、实施顺序与验收标准见：
+仓库已包含完整的容器化配置：`Dockerfile`（后端多阶段构建）、`docker-entrypoint.sh`（种子图补齐）、`.dockerignore`、`docker-compose.yml`，前端仓库包含 `Dockerfile` 与 `nginx.conf`。
 
-- [DEPLOYMENT_AND_DEMO_DATA_PLAN.md](DEPLOYMENT_AND_DEMO_DATA_PLAN.md) 第 10、11 节
+### 1. 架构
 
-部署完成并实测后，再在本节补充经过验证的启动命令与镜像构建命令。
+```text
+浏览器 → frontend（Nginx :80）
+            ├─ /            → Vue dist（history 模式 fallback 到 index.html）
+            └─ /api/*       → backend:8080/api/*（保留 /api 前缀）
+                                ├─ mysql:3306（独立实例，不暴露到宿主机）
+                                └─ /app/uploads（named volume，图片持久化）
+```
+
+### 2. 需要准备的环境变量
+
+复制模板并填入真实值（`.env` 已被 `.gitignore` 忽略）：
+
+```bash
+cp .env.example .env
+```
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `MYSQL_ROOT_PASSWORD` | ✅ | MySQL root 密码，缺失时 compose 直接报错 |
+| `MYSQL_USER` | ✅ | 应用数据库账号 |
+| `MYSQL_PASSWORD` | ✅ | 应用数据库密码 |
+| `LLM_BASE_URL` | ❌ | OpenAI 兼容接口地址，默认 DashScope 兼容模式 |
+| `LLM_API_KEY` | ❌ | 留空则 AI 助手降级为关键词问答 |
+| `LLM_MODEL` | ❌ | 默认 `qwen3.8-max-0902` |
+
+生产 profile 通过 `SPRING_PROFILES_ACTIVE=prod` 激活，数据库连接全部由 `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` 注入（见 [application-prod.yml](src/main/resources/application-prod.yml)）。
+
+### 3. 启动
+
+```bash
+docker compose up -d --build      # 构建镜像并后台启动
+docker compose ps                 # 查看服务状态
+docker compose logs -f backend    # 查看后端日志
+docker compose logs -f mysql      # 查看数据库日志
+```
+
+前端访问 `http://<服务器地址>/`。MySQL 未映射宿主机端口，仅在 `campus-net` 内可访问。
+
+### 4. 初始化演示数据库（容器内执行，手动触发）
+
+三个 SQL 文件按顺序执行，库名固定 `campus_trade`：
+
+```bash
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < sql/00-create-demo-database.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" campus_trade < sql/01-create-demo-schema.sql
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" campus_trade < sql/demo-data.sql
+```
+
+> `00` 只建空库；`01` 建 21 张表（纯 `CREATE TABLE`，无 `DROP`）；`demo-data.sql` 写入 6 个虚构演示账号与演示业务数据。脚本内容见 [DEMO_DATA_GUIDE.md](DEMO_DATA_GUIDE.md)，**不要**在本机 `localhost:3306` 的原开发库执行。
+
+### 5. 停止与数据保留
+
+```bash
+docker compose stop               # 停止服务，容器与数据保留
+docker compose down               # 删除容器与网络，数据卷保留
+docker compose down -v            # 连同 named volume 一起删除（数据不可恢复）
+```
+
+| 数据 | 存放位置 | 容器重建后 |
+|------|---------|-----------|
+| 数据库 | named volume `mysql_data` | ✅ 保留 |
+| 用户上传图片 | named volume `uploads_data` → `/app/uploads` | ✅ 保留 |
+| 种子图片 | 镜像内 `/app/seed-images/`，启动时补齐到 `/app/uploads/goods/seed-*.jpg` | ✅ 缺失才补齐，不覆盖已有文件 |
+
+> 首次启动时 `uploads_data` 为空卷，会比镜像内的 `/app/uploads` 优先挂载，因此由 `docker-entrypoint.sh` 在启动时把种子图补进卷内；已有同名文件不会被覆盖。
+
+### 6. 备份与恢复
+
+```bash
+# 备份
+docker compose exec -T mysql mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" campus_trade > backup.sql
+docker run --rm -v campus-trade_uploads_data:/data -v "$PWD":/backup alpine tar czf /backup/uploads.tar.gz -C /data .
+
+# 恢复
+docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" campus_trade < backup.sql
+docker run --rm -v campus-trade_uploads_data:/data -v "$PWD":/backup alpine tar xzf /backup/uploads.tar.gz -C /data
+```
+
+> 备份文件含业务数据，不得提交到 Git。
+
+### 7. 已知约束
+
+- 后端 `context-path=/api`，Nginx 反代**不 rewrite** `/api` 前缀。
+- 前端 `baseURL='/api'`，生产与图片路径均为同源，无需改代码。
+- `pom.xml` 已改为 `skip=false`，`mvn package` 会生成含 `BOOT-INF/` 的可执行 fat jar。
+- CORS 保留开发期宽松配置；同源部署下浏览器不会触发跨域。
+
+完整的前置条件与验收标准见 [DEPLOYMENT_AND_DEMO_DATA_PLAN.md](DEPLOYMENT_AND_DEMO_DATA_PLAN.md) 第 10、11 节。
 
 ## 公开演示环境
 

@@ -77,7 +77,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.jiayi.campustrade.CampusTradeApplication</mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>

@@ -35,8 +35,9 @@ import java.util.UUID;
 @RequestMapping("/upload")
 public class UploadController {
 
-    // 上传根目录（application-local.yml 中配置）
-    @Value("${app.upload.dir:D:/campus-trade-uploads}")
+    // 上传根目录（application-local.yml / application-prod.yml 中配置）
+    // 兜底值适用于 Linux 容器部署，Windows 本地开发由 application-local.yml 覆盖
+    @Value("${app.upload.dir:/app/uploads}")
     private String uploadDir;
 
     // 允许的图片扩展名白名单

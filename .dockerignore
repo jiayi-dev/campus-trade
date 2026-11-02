@@ -1,0 +1,38 @@
+# ============================================================
+# 后端 Docker 构建上下文排除项
+# ------------------------------------------------------------
+# 注意：不排除 seed-images/，Dockerfile 需要从它复制种子图片
+# （但 seed-images/ 本身不进入 Git，见 .gitignore）
+# ============================================================
+
+# 版本库与 IDE
+.git
+.gitignore
+.gitattributes
+.idea
+*.iml
+.vscode
+
+# 构建产物
+target/
+build/
+*.jar
+*.war
+
+# 本地配置与敏感文件（不得进入镜像）
+**/application-local.yml
+application-local.yml
+.env
+.env.*
+**/*.local.yml
+
+# 备份与临时产物
+.local-backups/
+src.zip
+*.log
+logs/
+tmp/
+*.tmp
+
+# 文档与脚本（不影响运行）
+*.md

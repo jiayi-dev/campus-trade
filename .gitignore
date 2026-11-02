@@ -37,3 +37,12 @@ application-local.yml
 # 本地手工备份产物，不入库
 src.zip
 
+# 种子图片与本地备份（不入库，构建镜像时由 Docker 上下文直接读取）
+seed-images/
+.local-backups/
+
+# Docker 部署密钥文件（只提交 .env.example）
+.env
+.env.*
+!.env.example
+

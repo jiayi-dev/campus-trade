@@ -1,0 +1,53 @@
+# ============================================================
+# 生产 / 容器环境配置（profile: prod）
+# ------------------------------------------------------------
+# 激活方式：SPRING_PROFILES_ACTIVE=prod（环境变量优先级高于 application.yml）
+# 本文件不含任何真实密码或 API Key，全部由环境变量注入。
+# 数据库连接参数与本地开发保持一致（serverTimezone + characterEncoding），
+# 仅主机名改为 Docker Compose 服务名 mysql。
+# ============================================================
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/campus_trade?serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
+  # 文件上传限制（与 UploadController 中 5MB 校验保持一致）
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+# 容器内上传目录：由 Dockerfile / compose 挂载持久化卷
+# 仍可通过环境变量 APP_UPLOAD_DIR 覆盖
+app:
+  upload:
+    dir: ${APP_UPLOAD_DIR:/app/uploads}
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    # 生产环境关闭控制台 SQL 明细，避免手机号等数据进入容器日志
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# ============================================================
+# AI 助手：与 application-local.yml 相同的 llm.* 前缀，
+# 仅把可变项改为环境变量，未设置时保持原有默认值。
+# api-key 留空 => AiService 自动降级为关键词规则问答。
+# ============================================================
+llm:
+  base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+  api-key: ${LLM_API_KEY:}
+  model: ${LLM_MODEL:qwen3.8-max-0902}
+  timeout: 120000
+  max-tokens: 1024
+  temperature: 0.7
+  sse-timeout: 180000
+  embedding-model: text-embedding-v3
+  embedding-timeout: 30000
+  rag:
+    top-k: 3
+    threshold: 0.55

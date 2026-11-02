@@ -16,7 +16,8 @@ public class WebConfig implements WebMvcConfigurer {
     private AuthInterceptor authInterceptor;
 
     // 上传根目录（与 UploadController 保持同一配置项）
-    @Value("${app.upload.dir:D:/campus-trade-uploads}")
+    // 兜底值适用于 Linux 容器部署，Windows 本地开发由 application-local.yml 覆盖
+    @Value("${app.upload.dir:/app/uploads}")
     private String uploadDir;
 
     // 配置拦截器

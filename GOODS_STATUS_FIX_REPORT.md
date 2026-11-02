@@ -133,7 +133,7 @@ UPDATE goods SET status = 1 WHERE goods_id = 13 AND status IS NULL;
 
 | 项 | 内容 |
 |----|------|
-| 备份文件 | `d:\code\campus-trade-project\.local-backups\goods_id_13_before_fix_20261101_135821.sql` |
+| 备份文件 | `.local-backups/goods_id_13_before_fix_20261101_135821.sql`（位于两个仓库之外的本机目录） |
 | 文件大小 | 2484 字节 |
 | 备份时间 | 2026-11-01 13:58:21（Asia/Shanghai） |
 | 备份方式 | `mysqldump --no-create-info --no-create-db --complete-insert --where="goods_id=13" campus_trade goods` |

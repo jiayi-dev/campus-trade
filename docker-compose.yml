@@ -1,0 +1,89 @@
+# ============================================================
+# 校园二手交易平台 · 一键部署编排
+# ------------------------------------------------------------
+# 服务：mysql（独立实例）→ backend（Spring Boot）→ frontend（Nginx + Vue）
+# 数据持久化：mysql_data（数据库）、uploads_data（用户上传图片）
+#
+# 使用方式：
+#   1. cp .env.example .env 并填写真实密码（.env 已被 .gitignore 忽略）
+#   2. docker compose up -d --build
+#
+# 注意：
+#   · MySQL 不对宿主机暴露 3306，避免与本机原开发库冲突
+#   · 演示数据 SQL 需在 mysql 容器启动后手动执行（见 README「Docker 部署」）
+# ============================================================
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: campus-trade-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: campus_trade
+      MYSQL_USER: ${MYSQL_USER:?请在 .env 中设置 MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中设置 MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - campus-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: campus-trade-backend:latest
+    container_name: campus-trade-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:?请在 .env 中设置 MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中设置 MYSQL_PASSWORD}
+      APP_UPLOAD_DIR: /app/uploads
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-qwen3.8-max-0902}
+      TZ: Asia/Shanghai
+    volumes:
+      # 用户上传图片持久化；容器每次启动会补齐缺失的种子图，不覆盖已有文件
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - campus-net
+
+  frontend:
+    build:
+      context: ../campus-trade-web
+      dockerfile: Dockerfile
+    image: campus-trade-frontend:latest
+    container_name: campus-trade-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - campus-net
+
+networks:
+  campus-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  uploads_data:

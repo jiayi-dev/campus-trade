@@ -370,7 +370,7 @@ SELECT COUNT(*) FROM chat_message m JOIN user u ON m.to_user_id=u.user_id
 mysqldump -u <账号> -p --single-transaction --routines --triggers <库名> > demo_backup_YYYYMMDD.sql
 ```
 
-备份文件放在仓库之外（例如 `D:\code\campus-trade-project\.local-backups\`），**不要提交 Git**。
+备份文件放在仓库之外（例如仓库根目录外的 `.local-backups/` 目录，已在 `.gitignore` 中排除），**不要提交 Git**。
 
 ### 恢复
 
